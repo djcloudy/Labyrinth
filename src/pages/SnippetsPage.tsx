@@ -1,20 +1,23 @@
-import { useState } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 import AppLayout from '@/components/AppLayout';
 import { snippetStore, projectStore } from '@/lib/store';
 import { useStore } from '@/hooks/use-store';
-import { Snippet, SnippetLanguage } from '@/lib/types';
+import { Snippet, SnippetLanguage, Project } from '@/lib/types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const LANG_COLORS: Record<SnippetLanguage, string> = { BASH: 'bg-warning/20 text-warning', YAML: 'bg-info/20 text-info', PYTHON: 'bg-success/20 text-success' };
 
 export default function SnippetsPage() {
-  const { data: snippets, refresh } = useStore(snippetStore.getAll);
-  const projects = projectStore.getAll();
+  const { data: snippets, loading, refresh } = useStore(useCallback(() => snippetStore.getAll(), []));
+  const [projects, setProjects] = useState<Project[]>([]);
+  useEffect(() => { projectStore.getAll().then(setProjects); }, []);
+
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Snippet | null>(null);
   const [title, setTitle] = useState('');
@@ -25,16 +28,16 @@ export default function SnippetsPage() {
   const openCreate = () => { setEditing(null); setTitle(''); setCode(''); setLanguage('BASH'); setProjectId('none'); setDialogOpen(true); };
   const openEdit = (s: Snippet) => { setEditing(s); setTitle(s.title); setCode(s.code); setLanguage(s.language); setProjectId(s.projectId || 'none'); setDialogOpen(true); };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!title.trim()) return;
     const pid = projectId === 'none' ? null : projectId;
-    if (editing) snippetStore.update(editing.id, { title, code, language, projectId: pid });
-    else snippetStore.create({ title, code, language, projectId: pid });
+    if (editing) await snippetStore.update(editing.id, { title, code, language, projectId: pid });
+    else await snippetStore.create({ title, code, language, projectId: pid });
     setDialogOpen(false);
     refresh();
   };
 
-  const handleDelete = (id: string) => { snippetStore.delete(id); refresh(); };
+  const handleDelete = async (id: string) => { await snippetStore.delete(id); refresh(); };
 
   return (
     <AppLayout>
@@ -44,7 +47,9 @@ export default function SnippetsPage() {
           <Button onClick={openCreate} className="gap-2"><Plus className="h-4 w-4" /> New Snippet</Button>
         </div>
 
-        {snippets.length === 0 ? (
+        {loading ? (
+          <div className="grid gap-4 md:grid-cols-2">{[1, 2].map(i => <Skeleton key={i} className="h-32 w-full rounded-xl" />)}</div>
+        ) : snippets.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-20">
             <p className="mb-4 text-muted-foreground">No snippets yet</p>
             <Button onClick={openCreate} variant="outline">Create your first snippet</Button>
@@ -52,7 +57,7 @@ export default function SnippetsPage() {
         ) : (
           <div className="grid gap-4 md:grid-cols-2">
             {snippets.map(snip => {
-              const project = snip.projectId ? projectStore.getById(snip.projectId) : null;
+              const project = snip.projectId ? projects.find(p => p.id === snip.projectId) : null;
               return (
                 <div key={snip.id} className="group rounded-xl border border-border bg-card p-5 hover:border-warning/30 transition-colors">
                   <div className="flex items-center justify-between mb-3">

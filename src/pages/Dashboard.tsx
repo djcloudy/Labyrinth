@@ -2,13 +2,18 @@ import { useNavigate } from 'react-router-dom';
 import { FolderKanban, FileText, Code2, Image, Bot } from 'lucide-react';
 import AppLayout from '@/components/AppLayout';
 import { projectStore, documentStore, snippetStore, mediaStore } from '@/lib/store';
+import { useStore } from '@/hooks/use-store';
+import { useCallback } from 'react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const projects = projectStore.getAll();
-  const documents = documentStore.getAll();
-  const snippets = snippetStore.getAll();
-  const media = mediaStore.getAll();
+  const { data: projects, loading: loadingProjects } = useStore(useCallback(() => projectStore.getAll(), []));
+  const { data: documents, loading: loadingDocs } = useStore(useCallback(() => documentStore.getAll(), []));
+  const { data: snippets, loading: loadingSnippets } = useStore(useCallback(() => snippetStore.getAll(), []));
+  const { data: media, loading: loadingMedia } = useStore(useCallback(() => mediaStore.getAll(), []));
+
+  const loading = loadingProjects || loadingDocs || loadingSnippets || loadingMedia;
 
   const stats = [
     { label: 'PROJECTS', count: projects.length, icon: FolderKanban, colorVar: 'text-primary' },
@@ -31,7 +36,7 @@ export default function Dashboard() {
                 <span className="text-xs font-semibold tracking-widest text-muted-foreground">{label}</span>
                 <Icon className={`h-5 w-5 ${colorVar}`} />
               </div>
-              <p className="text-4xl font-bold text-foreground">{count}</p>
+              {loading ? <Skeleton className="h-10 w-16" /> : <p className="text-4xl font-bold text-foreground">{count}</p>}
             </div>
           ))}
         </div>
@@ -42,7 +47,11 @@ export default function Dashboard() {
               <FolderKanban className="h-5 w-5 text-primary" />
               Recent Projects
             </h2>
-            {recentProjects.length === 0 ? (
+            {loading ? (
+              <div className="space-y-2">
+                {[1, 2, 3].map(i => <Skeleton key={i} className="h-12 w-full" />)}
+              </div>
+            ) : recentProjects.length === 0 ? (
               <p className="text-sm text-muted-foreground">No projects yet. Create your first project!</p>
             ) : (
               <div className="space-y-2">
@@ -57,7 +66,7 @@ export default function Dashboard() {
                       <span className="text-sm font-medium text-foreground">{project.name}</span>
                     </div>
                     <span className="text-xs text-muted-foreground">
-                      {documentStore.getByProject(project.id).length} DOCUMENTS
+                      {documents.filter(d => d.projectId === project.id).length} DOCUMENTS
                     </span>
                   </button>
                 ))}

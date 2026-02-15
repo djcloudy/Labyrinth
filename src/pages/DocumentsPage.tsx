@@ -1,18 +1,21 @@
-import { useState } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 import AppLayout from '@/components/AppLayout';
 import { documentStore, projectStore } from '@/lib/store';
 import { useStore } from '@/hooks/use-store';
-import { Document } from '@/lib/types';
+import { Document, Project } from '@/lib/types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function DocumentsPage() {
-  const { data: docs, refresh } = useStore(documentStore.getAll);
-  const projects = projectStore.getAll();
+  const { data: docs, loading, refresh } = useStore(useCallback(() => documentStore.getAll(), []));
+  const [projects, setProjects] = useState<Project[]>([]);
+  useEffect(() => { projectStore.getAll().then(setProjects); }, []);
+
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Document | null>(null);
   const [title, setTitle] = useState('');
@@ -22,16 +25,16 @@ export default function DocumentsPage() {
   const openCreate = () => { setEditing(null); setTitle(''); setContent(''); setProjectId('none'); setDialogOpen(true); };
   const openEdit = (d: Document) => { setEditing(d); setTitle(d.title); setContent(d.content); setProjectId(d.projectId || 'none'); setDialogOpen(true); };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!title.trim()) return;
     const pid = projectId === 'none' ? null : projectId;
-    if (editing) documentStore.update(editing.id, { title, content, projectId: pid });
-    else documentStore.create({ title, content, projectId: pid });
+    if (editing) await documentStore.update(editing.id, { title, content, projectId: pid });
+    else await documentStore.create({ title, content, projectId: pid });
     setDialogOpen(false);
     refresh();
   };
 
-  const handleDelete = (id: string) => { documentStore.delete(id); refresh(); };
+  const handleDelete = async (id: string) => { await documentStore.delete(id); refresh(); };
 
   return (
     <AppLayout>
@@ -41,7 +44,9 @@ export default function DocumentsPage() {
           <Button onClick={openCreate} className="gap-2"><Plus className="h-4 w-4" /> New Document</Button>
         </div>
 
-        {docs.length === 0 ? (
+        {loading ? (
+          <div className="space-y-3">{[1, 2, 3].map(i => <Skeleton key={i} className="h-20 w-full rounded-xl" />)}</div>
+        ) : docs.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-20">
             <p className="mb-4 text-muted-foreground">No documents yet</p>
             <Button onClick={openCreate} variant="outline">Create your first document</Button>
@@ -49,7 +54,7 @@ export default function DocumentsPage() {
         ) : (
           <div className="space-y-3">
             {docs.map(doc => {
-              const project = doc.projectId ? projectStore.getById(doc.projectId) : null;
+              const project = doc.projectId ? projects.find(p => p.id === doc.projectId) : null;
               return (
                 <div key={doc.id} className="group rounded-xl border border-border bg-card p-5 hover:border-info/30 transition-colors">
                   <div className="flex items-center justify-between">
