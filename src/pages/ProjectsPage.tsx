@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Trash2, Pencil } from 'lucide-react';
 import AppLayout from '@/components/AppLayout';
@@ -9,12 +9,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const PROJECT_COLORS = ['#7c5cfc', '#22d3ee', '#22c55e', '#f59e0b', '#ef4444', '#ec4899'];
 
 export default function ProjectsPage() {
   const navigate = useNavigate();
-  const { data: projects, refresh } = useStore(projectStore.getAll);
+  const { data: projects, loading, refresh } = useStore(useCallback(() => projectStore.getAll(), []));
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Project | null>(null);
   const [name, setName] = useState('');
@@ -24,20 +25,20 @@ export default function ProjectsPage() {
   const openCreate = () => { setEditing(null); setName(''); setDescription(''); setColor(PROJECT_COLORS[0]); setDialogOpen(true); };
   const openEdit = (p: Project, e: React.MouseEvent) => { e.stopPropagation(); setEditing(p); setName(p.name); setDescription(p.description); setColor(p.color); setDialogOpen(true); };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!name.trim()) return;
     if (editing) {
-      projectStore.update(editing.id, { name, description, color });
+      await projectStore.update(editing.id, { name, description, color });
     } else {
-      projectStore.create({ name, description, color });
+      await projectStore.create({ name, description, color });
     }
     setDialogOpen(false);
     refresh();
   };
 
-  const handleDelete = (id: string, e: React.MouseEvent) => {
+  const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    projectStore.delete(id);
+    await projectStore.delete(id);
     refresh();
   };
 
@@ -51,7 +52,11 @@ export default function ProjectsPage() {
           </Button>
         </div>
 
-        {projects.length === 0 ? (
+        {loading ? (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {[1, 2, 3].map(i => <Skeleton key={i} className="h-28 w-full rounded-xl" />)}
+          </div>
+        ) : projects.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-20">
             <p className="mb-4 text-muted-foreground">No projects yet</p>
             <Button onClick={openCreate} variant="outline">Create your first project</Button>

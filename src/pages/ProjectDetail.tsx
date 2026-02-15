@@ -1,24 +1,30 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Pencil, Trash2, Plus, FileText, Code2 } from 'lucide-react';
-import { useState } from 'react';
+import { ArrowLeft, Pencil, Trash2, FileText, Code2 } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
 import AppLayout from '@/components/AppLayout';
 import { projectStore, documentStore, snippetStore } from '@/lib/store';
-import { Document, Snippet, SnippetLanguage } from '@/lib/types';
+import { Project, Document, Snippet, SnippetLanguage } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useStore } from '@/hooks/use-store';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const LANG_COLORS: Record<SnippetLanguage, string> = { BASH: 'bg-warning/20 text-warning', YAML: 'bg-info/20 text-info', PYTHON: 'bg-success/20 text-success' };
 
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const project = projectStore.getById(id!);
-  const { data: docs, refresh: refreshDocs } = useStore(() => documentStore.getByProject(id!));
-  const { data: snippets, refresh: refreshSnippets } = useStore(() => snippetStore.getByProject(id!));
+  const [project, setProject] = useState<Project | null | undefined>(undefined);
+
+  useEffect(() => {
+    projectStore.getById(id!).then(p => setProject(p ?? null));
+  }, [id]);
+
+  const { data: docs, loading: loadingDocs, refresh: refreshDocs } = useStore(useCallback(() => documentStore.getByProject(id!), [id]));
+  const { data: snippets, loading: loadingSnippets, refresh: refreshSnippets } = useStore(useCallback(() => snippetStore.getByProject(id!), [id]));
 
   const [docDialog, setDocDialog] = useState(false);
   const [snippetDialog, setSnippetDialog] = useState(false);
@@ -31,19 +37,20 @@ export default function ProjectDetail() {
   const [snipCode, setSnipCode] = useState('');
   const [snipLang, setSnipLang] = useState<SnippetLanguage>('BASH');
 
-  if (!project) return <AppLayout><p className="text-muted-foreground">Project not found.</p></AppLayout>;
+  if (project === undefined) return <AppLayout><Skeleton className="h-8 w-48" /></AppLayout>;
+  if (project === null) return <AppLayout><p className="text-muted-foreground">Project not found.</p></AppLayout>;
 
   const openDocCreate = () => { setEditingDoc(null); setDocTitle(''); setDocContent(''); setDocDialog(true); };
   const openDocEdit = (d: Document) => { setEditingDoc(d); setDocTitle(d.title); setDocContent(d.content); setDocDialog(true); };
-  const saveDoc = () => { if (!docTitle.trim()) return; if (editingDoc) documentStore.update(editingDoc.id, { title: docTitle, content: docContent }); else documentStore.create({ title: docTitle, content: docContent, projectId: id! }); setDocDialog(false); refreshDocs(); };
-  const deleteDoc = (docId: string) => { documentStore.delete(docId); refreshDocs(); };
+  const saveDoc = async () => { if (!docTitle.trim()) return; if (editingDoc) await documentStore.update(editingDoc.id, { title: docTitle, content: docContent }); else await documentStore.create({ title: docTitle, content: docContent, projectId: id! }); setDocDialog(false); refreshDocs(); };
+  const deleteDoc = async (docId: string) => { await documentStore.delete(docId); refreshDocs(); };
 
   const openSnipCreate = () => { setEditingSnippet(null); setSnipTitle(''); setSnipCode(''); setSnipLang('BASH'); setSnippetDialog(true); };
   const openSnipEdit = (s: Snippet) => { setEditingSnippet(s); setSnipTitle(s.title); setSnipCode(s.code); setSnipLang(s.language); setSnippetDialog(true); };
-  const saveSnippet = () => { if (!snipTitle.trim()) return; if (editingSnippet) snippetStore.update(editingSnippet.id, { title: snipTitle, code: snipCode, language: snipLang }); else snippetStore.create({ title: snipTitle, code: snipCode, language: snipLang, projectId: id! }); setSnippetDialog(false); refreshSnippets(); };
-  const deleteSnippet = (snipId: string) => { snippetStore.delete(snipId); refreshSnippets(); };
+  const saveSnippet = async () => { if (!snipTitle.trim()) return; if (editingSnippet) await snippetStore.update(editingSnippet.id, { title: snipTitle, code: snipCode, language: snipLang }); else await snippetStore.create({ title: snipTitle, code: snipCode, language: snipLang, projectId: id! }); setSnippetDialog(false); refreshSnippets(); };
+  const deleteSnippet = async (snipId: string) => { await snippetStore.delete(snipId); refreshSnippets(); };
 
-  const handleDeleteProject = () => { projectStore.delete(id!); navigate('/projects'); };
+  const handleDeleteProject = async () => { await projectStore.delete(id!); navigate('/projects'); };
 
   return (
     <AppLayout>
@@ -70,7 +77,7 @@ export default function ProjectDetail() {
             <h2 className="flex items-center gap-2 text-lg font-semibold"><FileText className="h-5 w-5 text-info" /> Documents</h2>
             <button onClick={openDocCreate} className="text-xs font-semibold text-primary hover:text-primary/80 transition-colors">+ ADD DOC</button>
           </div>
-          {docs.length === 0 ? <p className="text-sm text-muted-foreground">No documents yet.</p> : (
+          {loadingDocs ? <Skeleton className="h-16 w-full" /> : docs.length === 0 ? <p className="text-sm text-muted-foreground">No documents yet.</p> : (
             <div className="space-y-3">
               {docs.map(doc => (
                 <div key={doc.id} className="group rounded-xl border border-border bg-card p-4 hover:border-info/30 transition-colors">
@@ -96,7 +103,7 @@ export default function ProjectDetail() {
             <h2 className="flex items-center gap-2 text-lg font-semibold"><Code2 className="h-5 w-5 text-success" /> Snippets</h2>
             <button onClick={openSnipCreate} className="text-xs font-semibold text-primary hover:text-primary/80 transition-colors">+ ADD SNIPPET</button>
           </div>
-          {snippets.length === 0 ? <p className="text-sm text-muted-foreground">No snippets yet.</p> : (
+          {loadingSnippets ? <Skeleton className="h-16 w-full" /> : snippets.length === 0 ? <p className="text-sm text-muted-foreground">No snippets yet.</p> : (
             <div className="space-y-3">
               {snippets.map(snip => (
                 <div key={snip.id} className="group rounded-xl border border-border bg-card p-4 hover:border-success/30 transition-colors">
