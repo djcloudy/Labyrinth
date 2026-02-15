@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, Copy, Check } from 'lucide-react';
 import AppLayout from '@/components/AppLayout';
 import { snippetStore, projectStore } from '@/lib/store';
 import { useStore } from '@/hooks/use-store';
@@ -24,6 +24,7 @@ export default function SnippetsPage() {
   const [code, setCode] = useState('');
   const [language, setLanguage] = useState<SnippetLanguage>('BASH');
   const [projectId, setProjectId] = useState<string>('none');
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const openCreate = () => { setEditing(null); setTitle(''); setCode(''); setLanguage('BASH'); setProjectId('none'); setDialogOpen(true); };
   const openEdit = (s: Snippet) => { setEditing(s); setTitle(s.title); setCode(s.code); setLanguage(s.language); setProjectId(s.projectId || 'none'); setDialogOpen(true); };
@@ -39,6 +40,12 @@ export default function SnippetsPage() {
 
   const handleDelete = async (id: string) => { await snippetStore.delete(id); refresh(); };
 
+  const handleCopy = async (id: string, code: string) => {
+    await navigator.clipboard.writeText(code);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
   return (
     <AppLayout>
       <div className="animate-fade-in">
@@ -48,14 +55,14 @@ export default function SnippetsPage() {
         </div>
 
         {loading ? (
-          <div className="grid gap-4 md:grid-cols-2">{[1, 2].map(i => <Skeleton key={i} className="h-32 w-full rounded-xl" />)}</div>
+          <div className="space-y-4">{[1, 2].map(i => <Skeleton key={i} className="h-32 w-full rounded-xl" />)}</div>
         ) : snippets.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-20">
             <p className="mb-4 text-muted-foreground">No snippets yet</p>
             <Button onClick={openCreate} variant="outline">Create your first snippet</Button>
           </div>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-4">
             {snippets.map(snip => {
               const project = snip.projectId ? projects.find(p => p.id === snip.projectId) : null;
               return (
@@ -64,13 +71,16 @@ export default function SnippetsPage() {
                     <div className="flex items-center gap-2">
                       <h3 className="font-semibold text-foreground">{snip.title}</h3>
                       <span className={`rounded px-2 py-0.5 text-xs font-bold ${LANG_COLORS[snip.language]}`}>{snip.language}</span>
+                      {project && <span className="rounded bg-primary/10 px-2 py-0.5 text-xs text-primary">{project.name}</span>}
                     </div>
                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button onClick={() => handleCopy(snip.id, snip.code)} className="rounded-md p-1.5 hover:bg-secondary text-muted-foreground hover:text-foreground" title="Copy to clipboard">
+                        {copiedId === snip.id ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
+                      </button>
                       <button onClick={() => openEdit(snip)} className="rounded-md p-1.5 hover:bg-secondary text-muted-foreground hover:text-foreground"><Pencil className="h-3.5 w-3.5" /></button>
                       <button onClick={() => handleDelete(snip.id)} className="rounded-md p-1.5 hover:bg-destructive/20 text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
                     </div>
                   </div>
-                  {project && <span className="mb-2 inline-block rounded bg-primary/10 px-2 py-0.5 text-xs text-primary">{project.name}</span>}
                   <pre className="overflow-x-auto rounded-lg border border-border bg-background p-3 text-sm font-mono text-success"><code>{snip.code}</code></pre>
                 </div>
               );
