@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
-import { FolderKanban, FileText, Code2, Image, Bot } from 'lucide-react';
+import { FolderKanban, FileText, Code2, Image, Bot, ListTodo } from 'lucide-react';
 import AppLayout from '@/components/AppLayout';
-import { projectStore, documentStore, snippetStore, mediaStore } from '@/lib/store';
+import { projectStore, documentStore, snippetStore, mediaStore, taskStore } from '@/lib/store';
 import { useStore } from '@/hooks/use-store';
 import { useCallback } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -12,11 +12,13 @@ export default function Dashboard() {
   const { data: documents, loading: loadingDocs } = useStore(useCallback(() => documentStore.getAll(), []));
   const { data: snippets, loading: loadingSnippets } = useStore(useCallback(() => snippetStore.getAll(), []));
   const { data: media, loading: loadingMedia } = useStore(useCallback(() => mediaStore.getAll(), []));
+  const { data: tasks, loading: loadingTasks } = useStore(useCallback(() => taskStore.getAll(), []));
 
-  const loading = loadingProjects || loadingDocs || loadingSnippets || loadingMedia;
+  const loading = loadingProjects || loadingDocs || loadingSnippets || loadingMedia || loadingTasks;
 
   const stats = [
     { label: 'PROJECTS', count: projects.length, icon: FolderKanban, colorVar: 'text-primary' },
+    { label: 'TASKS', count: tasks.length, icon: ListTodo, colorVar: 'text-warning' },
     { label: 'DOCUMENTS', count: documents.length, icon: FileText, colorVar: 'text-info' },
     { label: 'SNIPPETS', count: snippets.length, icon: Code2, colorVar: 'text-success' },
     { label: 'MEDIA', count: media.length, icon: Image, colorVar: 'text-destructive' },
@@ -29,7 +31,7 @@ export default function Dashboard() {
       <div className="animate-fade-in">
         <h1 className="mb-8 text-3xl font-bold text-foreground">Overview</h1>
 
-        <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
           {stats.map(({ label, count, icon: Icon, colorVar }) => (
             <div key={label} className="rounded-xl border border-border bg-card p-5 transition-colors hover:border-primary/30">
               <div className="flex items-center justify-between mb-3">
