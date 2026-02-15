@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Image, Plus, Trash2, Upload, X } from 'lucide-react';
+import { Image, Plus, Trash2, Upload, X, Pencil } from 'lucide-react';
 import AppLayout from '@/components/AppLayout';
 import { mediaStore, projectStore } from '@/lib/store';
 import { useStore } from '@/hooks/use-store';
@@ -24,6 +24,26 @@ export default function MediaPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [viewImage, setViewImage] = useState<MediaItem | null>(null);
+  const [editingMedia, setEditingMedia] = useState<MediaItem | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editProjectId, setEditProjectId] = useState<string>('none');
+
+  const openEditMedia = (e: React.MouseEvent, item: MediaItem) => {
+    e.stopPropagation();
+    setEditingMedia(item);
+    setEditTitle(item.title);
+    setEditProjectId(item.projectId || 'none');
+    setEditDialogOpen(true);
+  };
+
+  const handleEditSave = async () => {
+    if (!editingMedia || !editTitle.trim()) return;
+    const pid = editProjectId === 'none' ? null : editProjectId;
+    await mediaStore.update(editingMedia.id, { title: editTitle, projectId: pid });
+    setEditDialogOpen(false);
+    refresh();
+  };
 
   const openUpload = () => {
     setTitle('');
@@ -96,6 +116,9 @@ export default function MediaPage() {
                   <div className="p-3">
                     <div className="flex items-center justify-between">
                       <p className="text-sm font-medium text-foreground truncate">{item.title}</p>
+                      <button onClick={(e) => openEditMedia(e, item)} className="rounded-md p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-secondary text-muted-foreground hover:text-foreground">
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
                       <button onClick={() => handleDelete(item.id)} className="rounded-md p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/20 text-muted-foreground hover:text-destructive">
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
@@ -152,6 +175,23 @@ export default function MediaPage() {
                 <img src={viewImage.url} alt={viewImage.title} className="w-full rounded-lg" />
               </>
             )}
+          </DialogContent>
+        </Dialog>
+        {/* Edit media dialog */}
+        <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+          <DialogContent className="bg-card border-border">
+            <DialogHeader><DialogTitle>Edit Media</DialogTitle></DialogHeader>
+            <div className="space-y-4">
+              <Input placeholder="Title" value={editTitle} onChange={e => setEditTitle(e.target.value)} className="bg-secondary border-border" />
+              <Select value={editProjectId} onValueChange={setEditProjectId}>
+                <SelectTrigger className="bg-secondary border-border"><SelectValue placeholder="Link to project" /></SelectTrigger>
+                <SelectContent className="bg-card border-border">
+                  <SelectItem value="none">No project</SelectItem>
+                  {projects.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Button onClick={handleEditSave} className="w-full">Save</Button>
+            </div>
           </DialogContent>
         </Dialog>
       </div>

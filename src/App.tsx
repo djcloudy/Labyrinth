@@ -8,6 +8,7 @@ import { checkApiHealth } from "@/lib/api";
 import Dashboard from "./pages/Dashboard";
 import ProjectsPage from "./pages/ProjectsPage";
 import ProjectDetail from "./pages/ProjectDetail";
+import TasksPage from "./pages/TasksPage";
 import DocumentsPage from "./pages/DocumentsPage";
 import SnippetsPage from "./pages/SnippetsPage";
 import MediaPage from "./pages/MediaPage";
@@ -36,6 +37,7 @@ const App = () => {
             <Route path="/" element={<Dashboard />} />
             <Route path="/projects" element={<ProjectsPage />} />
             <Route path="/projects/:id" element={<ProjectDetail />} />
+            <Route path="/tasks" element={<TasksPage />} />
             <Route path="/documents" element={<DocumentsPage />} />
             <Route path="/snippets" element={<SnippetsPage />} />
             <Route path="/media" element={<MediaPage />} />

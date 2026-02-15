@@ -1,4 +1,4 @@
-import { Project, Document, Snippet, MediaItem } from './types';
+import { Project, Document, Snippet, MediaItem, Task } from './types';
 import { isApiAvailable, apiGetAll, apiCreate, apiUpdate, apiDelete } from './api';
 
 const KEYS = {
@@ -6,6 +6,7 @@ const KEYS = {
   documents: 'labyrinth_documents',
   snippets: 'labyrinth_snippets',
   media: 'labyrinth_media',
+  tasks: 'labyrinth_tasks',
 };
 
 function getLocal<T>(key: string): T[] {
@@ -65,6 +66,7 @@ export const projectStore = {
     setLocal(KEYS.documents, getLocal<Document>(KEYS.documents).map(d => d.projectId === id ? { ...d, projectId: null } : d));
     setLocal(KEYS.snippets, getLocal<Snippet>(KEYS.snippets).map(s => s.projectId === id ? { ...s, projectId: null } : s));
     setLocal(KEYS.media, getLocal<MediaItem>(KEYS.media).map(m => m.projectId === id ? { ...m, projectId: null } : m));
+    setLocal(KEYS.tasks, getLocal<Task>(KEYS.tasks).filter(t => t.projectId !== id));
   },
 };
 
@@ -175,8 +177,53 @@ export const mediaStore = {
     setLocal(KEYS.media, media);
     return item;
   },
+  update: async (id: string, data: Partial<Omit<MediaItem, 'id' | 'createdAt'>>): Promise<MediaItem | undefined> => {
+    if (useApi()) return apiUpdate<MediaItem>('media', id, data);
+    const media = getLocal<MediaItem>(KEYS.media);
+    const idx = media.findIndex(m => m.id === id);
+    if (idx === -1) return undefined;
+    media[idx] = { ...media[idx], ...data };
+    setLocal(KEYS.media, media);
+    return media[idx];
+  },
   delete: async (id: string): Promise<void> => {
     if (useApi()) return apiDelete('media', id);
     setLocal(KEYS.media, getLocal<MediaItem>(KEYS.media).filter(m => m.id !== id));
+  },
+};
+
+// Tasks
+export const taskStore = {
+  getAll: async (): Promise<Task[]> => {
+    if (useApi()) return apiGetAll<Task>('tasks');
+    return getLocal(KEYS.tasks);
+  },
+  getByProject: async (projectId: string): Promise<Task[]> => {
+    if (useApi()) {
+      const all = await apiGetAll<Task>('tasks');
+      return all.filter(t => t.projectId === projectId);
+    }
+    return getLocal<Task>(KEYS.tasks).filter(t => t.projectId === projectId);
+  },
+  create: async (data: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>): Promise<Task> => {
+    if (useApi()) return apiCreate<Task>('tasks', data);
+    const tasks = getLocal<Task>(KEYS.tasks);
+    const task: Task = { ...data, id: generateId(), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+    tasks.push(task);
+    setLocal(KEYS.tasks, tasks);
+    return task;
+  },
+  update: async (id: string, data: Partial<Omit<Task, 'id' | 'createdAt'>>): Promise<Task | undefined> => {
+    if (useApi()) return apiUpdate<Task>('tasks', id, data);
+    const tasks = getLocal<Task>(KEYS.tasks);
+    const idx = tasks.findIndex(t => t.id === id);
+    if (idx === -1) return undefined;
+    tasks[idx] = { ...tasks[idx], ...data, updatedAt: new Date().toISOString() };
+    setLocal(KEYS.tasks, tasks);
+    return tasks[idx];
+  },
+  delete: async (id: string): Promise<void> => {
+    if (useApi()) return apiDelete('tasks', id);
+    setLocal(KEYS.tasks, getLocal<Task>(KEYS.tasks).filter(t => t.id !== id));
   },
 };

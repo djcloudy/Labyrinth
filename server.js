@@ -11,7 +11,7 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3001;
 const DATA_DIR = path.resolve(process.env.LABYRINTH_DATA_DIR || './data');
-const VALID_COLLECTIONS = ['projects', 'documents', 'snippets', 'media'];
+const VALID_COLLECTIONS = ['projects', 'documents', 'snippets', 'media', 'tasks'];
 
 // Ensure data directory exists and is writable
 try {
@@ -101,7 +101,7 @@ app.delete('/api/:collection/:id', validateCollection, (req, res) => {
   if (items.length === before) return res.status(404).json({ error: 'Not found' });
   writeCollection(collection, items);
 
-  // If deleting a project, unlink related items
+  // If deleting a project, unlink related items and delete tasks
   if (collection === 'projects') {
     ['documents', 'snippets', 'media'].forEach(col => {
       const related = readCollection(col);
@@ -110,6 +110,8 @@ app.delete('/api/:collection/:id', validateCollection, (req, res) => {
       );
       writeCollection(col, updated);
     });
+    const tasks = readCollection('tasks').filter(t => t.projectId !== req.params.id);
+    writeCollection('tasks', tasks);
   }
 
   res.json({ success: true });
