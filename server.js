@@ -1,8 +1,12 @@
-const express = require('express');
-const cors = require('cors');
-const fs = require('fs');
-const path = require('path');
-const crypto = require('crypto');
+import express from 'express';
+import cors from 'cors';
+import fs from 'fs';
+import path from 'path';
+import crypto from 'crypto';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -115,7 +119,7 @@ app.delete('/api/:collection/:id', validateCollection, (req, res) => {
 const distPath = path.join(__dirname, 'dist');
 if (fs.existsSync(distPath)) {
   app.use(express.static(distPath));
-  app.get('*', (req, res) => {
+  app.get('/{*path}', (req, res) => {
     res.sendFile(path.join(distPath, 'index.html'));
   });
 }
