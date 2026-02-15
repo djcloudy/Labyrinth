@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, ChevronDown } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 import AppLayout from '@/components/AppLayout';
 import { documentStore, projectStore } from '@/lib/store';
 import { useStore } from '@/hooks/use-store';
@@ -10,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
 
 export default function DocumentsPage() {
   const { data: docs, loading, refresh } = useStore(useCallback(() => documentStore.getAll(), []));
@@ -21,9 +23,10 @@ export default function DocumentsPage() {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [projectId, setProjectId] = useState<string>('none');
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const openCreate = () => { setEditing(null); setTitle(''); setContent(''); setProjectId('none'); setDialogOpen(true); };
-  const openEdit = (d: Document) => { setEditing(d); setTitle(d.title); setContent(d.content); setProjectId(d.projectId || 'none'); setDialogOpen(true); };
+  const openEdit = (e: React.MouseEvent, d: Document) => { e.stopPropagation(); setEditing(d); setTitle(d.title); setContent(d.content); setProjectId(d.projectId || 'none'); setDialogOpen(true); };
 
   const handleSave = async () => {
     if (!title.trim()) return;
@@ -34,7 +37,9 @@ export default function DocumentsPage() {
     refresh();
   };
 
-  const handleDelete = async (id: string) => { await documentStore.delete(id); refresh(); };
+  const handleDelete = async (e: React.MouseEvent, id: string) => { e.stopPropagation(); await documentStore.delete(id); refresh(); };
+
+  const toggleExpand = (id: string) => setExpandedId(prev => prev === id ? null : id);
 
   return (
     <AppLayout>
@@ -55,19 +60,50 @@ export default function DocumentsPage() {
           <div className="space-y-3">
             {docs.map(doc => {
               const project = doc.projectId ? projects.find(p => p.id === doc.projectId) : null;
+              const isExpanded = expandedId === doc.id;
               return (
-                <div key={doc.id} className="group rounded-xl border border-border bg-card p-5 hover:border-info/30 transition-colors">
-                  <div className="flex items-center justify-between">
-                    <div>
+                <div key={doc.id} className="group rounded-xl border border-border bg-card transition-colors hover:border-info/30">
+                  <button
+                    onClick={() => toggleExpand(doc.id)}
+                    className="flex w-full items-center justify-between p-5 text-left"
+                  >
+                    <div className="min-w-0 flex-1">
                       <h3 className="font-semibold text-foreground">{doc.title}</h3>
-                      <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{doc.content || 'Empty'}</p>
+                      {!isExpanded && (
+                        <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{doc.content || 'Empty'}</p>
+                      )}
                       {project && <span className="mt-2 inline-block rounded bg-primary/10 px-2 py-0.5 text-xs text-primary">{project.name}</span>}
                     </div>
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => openEdit(doc)} className="rounded-md p-1.5 hover:bg-secondary text-muted-foreground hover:text-foreground"><Pencil className="h-3.5 w-3.5" /></button>
-                      <button onClick={() => handleDelete(doc.id)} className="rounded-md p-1.5 hover:bg-destructive/20 text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
+                    <div className="ml-4 flex items-center gap-1">
+                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <span onClick={(e) => openEdit(e, doc)} className="rounded-md p-1.5 hover:bg-secondary text-muted-foreground hover:text-foreground cursor-pointer"><Pencil className="h-3.5 w-3.5" /></span>
+                        <span onClick={(e) => handleDelete(e, doc.id)} className="rounded-md p-1.5 hover:bg-destructive/20 text-muted-foreground hover:text-destructive cursor-pointer"><Trash2 className="h-3.5 w-3.5" /></span>
+                      </div>
+                      <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform duration-200", isExpanded && "rotate-180")} />
                     </div>
-                  </div>
+                  </button>
+                  {isExpanded && (
+                    <div className="border-t border-border px-5 py-4">
+                      <div className="prose prose-sm prose-invert max-w-none text-foreground
+                        prose-headings:text-foreground prose-headings:font-semibold
+                        prose-p:text-muted-foreground prose-p:leading-relaxed
+                        prose-a:text-primary prose-a:no-underline hover:prose-a:underline
+                        prose-strong:text-foreground
+                        prose-code:rounded prose-code:bg-secondary prose-code:px-1.5 prose-code:py-0.5 prose-code:text-xs prose-code:text-foreground prose-code:before:content-none prose-code:after:content-none
+                        prose-pre:rounded-lg prose-pre:border prose-pre:border-border prose-pre:bg-background
+                        prose-ul:text-muted-foreground prose-ol:text-muted-foreground
+                        prose-li:marker:text-muted-foreground
+                        prose-blockquote:border-primary/50 prose-blockquote:text-muted-foreground
+                        prose-hr:border-border
+                      ">
+                        {doc.content ? (
+                          <ReactMarkdown>{doc.content}</ReactMarkdown>
+                        ) : (
+                          <p className="italic text-muted-foreground">Empty document</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -86,7 +122,7 @@ export default function DocumentsPage() {
                   {projects.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
                 </SelectContent>
               </Select>
-              <Textarea placeholder="Content" value={content} onChange={e => setContent(e.target.value)} rows={6} className="bg-secondary border-border font-mono text-sm" />
+              <Textarea placeholder="Content (supports markdown)" value={content} onChange={e => setContent(e.target.value)} rows={10} className="bg-secondary border-border font-mono text-sm" />
               <Button onClick={handleSave} className="w-full">{editing ? 'Save' : 'Create'}</Button>
             </div>
           </DialogContent>
