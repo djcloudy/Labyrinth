@@ -1,4 +1,5 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Plus, Pencil, Trash2, CheckCircle2, Circle, Clock, Search } from 'lucide-react';
 import AppLayout from '@/components/AppLayout';
 import { taskStore, projectStore } from '@/lib/store';
@@ -38,6 +39,10 @@ export default function TasksPage() {
   const [projectId, setProjectId] = useState<string>('');
   const [filterProject, setFilterProject] = useState<string>('all');
   const [search, setSearch] = useState('');
+  const [searchParams] = useSearchParams();
+  const highlightId = searchParams.get('task');
+  const highlightRef = useRef<HTMLDivElement>(null);
+  useEffect(() => { if (highlightRef.current) highlightRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, [highlightId, loading]);
 
   const openCreate = () => {
     setEditing(null); setTitle(''); setDescription(''); setStatus('TODO'); setPriority('MEDIUM');
@@ -124,7 +129,7 @@ export default function TasksPage() {
                     {grouped[statusKey].map(task => {
                       const project = projects.find(p => p.id === task.projectId);
                       return (
-                        <div key={task.id} className="group rounded-lg border border-border bg-card p-3 hover:border-primary/30 transition-colors">
+                        <div ref={highlightId === task.id ? highlightRef : undefined} key={task.id} className={cn("group rounded-lg border border-border bg-card p-3 hover:border-primary/30 transition-colors", highlightId === task.id && "ring-2 ring-primary border-primary")}>
                           <div className="flex items-start justify-between gap-2">
                             <button onClick={() => handleStatusCycle(task)} className="mt-0.5 shrink-0" title="Cycle status">
                               <StatusIcon className={cn('h-4 w-4', config.className)} />
