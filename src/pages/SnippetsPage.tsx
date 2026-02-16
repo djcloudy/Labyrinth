@@ -22,6 +22,7 @@ export default function SnippetsPage() {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Snippet | null>(null);
+  const [viewSnippet, setViewSnippet] = useState<Snippet | null>(null);
   const [title, setTitle] = useState('');
   const [code, setCode] = useState('');
   const [language, setLanguage] = useState<SnippetLanguage>('BASH');
@@ -105,27 +106,54 @@ export default function SnippetsPage() {
             {filtered.map(snip => {
               const project = snip.projectId ? projects.find(p => p.id === snip.projectId) : null;
               return (
-                <div ref={highlightId === snip.id ? highlightRef : undefined} key={snip.id} className={cn("group rounded-xl border border-border bg-card p-5 hover:border-warning/30 transition-colors", highlightId === snip.id && "ring-2 ring-primary border-primary")}>
-                  <div className="flex items-center justify-between mb-3">
+                <div ref={highlightId === snip.id ? highlightRef : undefined} key={snip.id} className={cn("group rounded-xl border border-border bg-card p-5 hover:border-warning/30 transition-colors cursor-pointer", highlightId === snip.id && "ring-2 ring-primary border-primary")} onClick={() => setViewSnippet(snip)}>
+                  <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <h3 className="font-semibold text-foreground">{snip.title}</h3>
                       <span className={`rounded px-2 py-0.5 text-xs font-bold ${LANG_COLORS[snip.language]}`}>{snip.language}</span>
                       {project && <span className="rounded bg-primary/10 px-2 py-0.5 text-xs text-primary">{project.name}</span>}
                     </div>
                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => handleCopy(snip.id, snip.code)} className="rounded-md p-1.5 hover:bg-secondary text-muted-foreground hover:text-foreground" title="Copy to clipboard">
+                      <button onClick={(e) => { e.stopPropagation(); handleCopy(snip.id, snip.code); }} className="rounded-md p-1.5 hover:bg-secondary text-muted-foreground hover:text-foreground" title="Copy to clipboard">
                         {copiedId === snip.id ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
                       </button>
-                      <button onClick={() => openEdit(snip)} className="rounded-md p-1.5 hover:bg-secondary text-muted-foreground hover:text-foreground"><Pencil className="h-3.5 w-3.5" /></button>
-                      <button onClick={() => handleDelete(snip.id)} className="rounded-md p-1.5 hover:bg-destructive/20 text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
+                      <button onClick={(e) => { e.stopPropagation(); openEdit(snip); }} className="rounded-md p-1.5 hover:bg-secondary text-muted-foreground hover:text-foreground"><Pencil className="h-3.5 w-3.5" /></button>
+                      <button onClick={(e) => { e.stopPropagation(); handleDelete(snip.id); }} className="rounded-md p-1.5 hover:bg-destructive/20 text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
                     </div>
                   </div>
-                  <pre className="overflow-x-auto whitespace-pre-wrap break-all rounded-lg border border-border bg-background p-3 text-sm font-mono text-success"><code>{snip.code}</code></pre>
+                  <p className="mt-1 text-xs text-muted-foreground line-clamp-1 font-mono">{snip.code}</p>
                 </div>
               );
             })}
           </div>
         )}
+
+        {/* View Snippet Dialog */}
+        <Dialog open={!!viewSnippet} onOpenChange={(open) => !open && setViewSnippet(null)}>
+          <DialogContent className="bg-card border-border max-w-2xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <div className="flex items-center gap-2">
+                <DialogTitle>{viewSnippet?.title}</DialogTitle>
+                {viewSnippet && <span className={`rounded px-2 py-0.5 text-xs font-bold ${LANG_COLORS[viewSnippet.language]}`}>{viewSnippet.language}</span>}
+              </div>
+            </DialogHeader>
+            <pre className="overflow-x-auto whitespace-pre-wrap break-all rounded-lg border border-border bg-background p-4 text-sm font-mono text-success">
+              <code>{viewSnippet?.code}</code>
+            </pre>
+            <div className="flex justify-end gap-2 pt-4 border-t border-border">
+              <Button variant="outline" size="sm" onClick={() => viewSnippet && handleCopy(viewSnippet.id, viewSnippet.code)}>
+                {copiedId === viewSnippet?.id ? <Check className="h-3.5 w-3.5 mr-1.5 text-success" /> : <Copy className="h-3.5 w-3.5 mr-1.5" />}
+                {copiedId === viewSnippet?.id ? 'Copied' : 'Copy'}
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => { if (viewSnippet) { openEdit(viewSnippet); setViewSnippet(null); } }}>
+                <Pencil className="h-3.5 w-3.5 mr-1.5" /> Edit
+              </Button>
+              <Button variant="destructive" size="sm" onClick={() => { if (viewSnippet) { handleDelete(viewSnippet.id); setViewSnippet(null); } }}>
+                <Trash2 className="h-3.5 w-3.5 mr-1.5" /> Delete
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogContent className="bg-card border-border">
