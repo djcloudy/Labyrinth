@@ -1,4 +1,5 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Plus, Pencil, Trash2, Copy, Check, Search } from 'lucide-react';
 import AppLayout from '@/components/AppLayout';
 import { snippetStore, projectStore } from '@/lib/store';
@@ -10,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
 
 const LANG_COLORS: Record<SnippetLanguage, string> = { BASH: 'bg-warning/20 text-warning', YAML: 'bg-info/20 text-info', PYTHON: 'bg-success/20 text-success' };
 
@@ -28,6 +30,10 @@ export default function SnippetsPage() {
   const [search, setSearch] = useState('');
   const [filterProject, setFilterProject] = useState<string>('all');
   const [filterLang, setFilterLang] = useState<string>('all');
+  const [searchParams] = useSearchParams();
+  const highlightId = searchParams.get('snippet');
+  const highlightRef = useRef<HTMLDivElement>(null);
+  useEffect(() => { if (highlightRef.current) highlightRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, [highlightId, loading]);
 
   const openCreate = () => { setEditing(null); setTitle(''); setCode(''); setLanguage('BASH'); setProjectId('none'); setDialogOpen(true); };
   const openEdit = (s: Snippet) => { setEditing(s); setTitle(s.title); setCode(s.code); setLanguage(s.language); setProjectId(s.projectId || 'none'); setDialogOpen(true); };
@@ -99,7 +105,7 @@ export default function SnippetsPage() {
             {filtered.map(snip => {
               const project = snip.projectId ? projects.find(p => p.id === snip.projectId) : null;
               return (
-                <div key={snip.id} className="group rounded-xl border border-border bg-card p-5 hover:border-warning/30 transition-colors">
+                <div ref={highlightId === snip.id ? highlightRef : undefined} key={snip.id} className={cn("group rounded-xl border border-border bg-card p-5 hover:border-warning/30 transition-colors", highlightId === snip.id && "ring-2 ring-primary border-primary")}>
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
                       <h3 className="font-semibold text-foreground">{snip.title}</h3>
