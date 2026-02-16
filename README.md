@@ -11,6 +11,18 @@ A dark-themed project management app for your home lab. Manage projects, documen
 - **AI Hub** — Connect AI tools and assistants
 - **Dual Storage** — Browser localStorage (default) + persistent disk storage via Express server
 
+## Environment Variables
+
+The AI Hub supports OpenAI, Gemini, and local Ollama. You can configure API keys either via the UI (Settings dialog in AI Hub) or as environment variables before starting the app:
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `OPENAI_API_KEY` | OpenAI API key | `sk-proj-...` |
+| `GEMINI_API_KEY` | Google Gemini API key | `AIza...` |
+| `OLLAMA_URL` | Ollama server URL (default: `http://localhost:11434`) | `http://192.168.1.50:11434` |
+
+Keys set via the UI are stored in browser localStorage. Keys set as environment variables are read by the Express server and used for server-side proxying.
+
 ## Quick Start (Development)
 
 ```bash
@@ -40,14 +52,14 @@ npm run build
 ### 3. Run with disk storage
 
 ```bash
-# Specify your data directory
-LABYRINTH_DATA_DIR=/home/user/labyrinth-data node server.js
+# Specify your data directory and AI API keys
+OPENAI_API_KEY=sk-... GEMINI_API_KEY=AIza... LABYRINTH_DATA_DIR=/home/user/labyrinth-data node server.js
 
 # Or use the default ./data directory
 node server.js
 
-# Custom port
-PORT=8080 LABYRINTH_DATA_DIR=/opt/labyrinth/data node server.js
+# Custom port + Ollama on a remote host
+PORT=8080 OLLAMA_URL=http://192.168.1.50:11434 LABYRINTH_DATA_DIR=/opt/labyrinth/data node server.js
 ```
 
 The server will:
@@ -80,6 +92,8 @@ Type=simple
 User=your-username
 WorkingDirectory=/path/to/labyrinth
 Environment=LABYRINTH_DATA_DIR=/opt/labyrinth/data
+Environment=OPENAI_API_KEY=sk-your-key-here
+Environment=GEMINI_API_KEY=AIza-your-key-here
 Environment=PORT=3001
 ExecStart=/usr/bin/node server.js
 Restart=on-failure
