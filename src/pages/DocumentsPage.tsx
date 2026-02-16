@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Plus, Pencil, Trash2, ChevronDown } from 'lucide-react';
+import { Plus, Pencil, Trash2, ChevronDown, Search } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import AppLayout from '@/components/AppLayout';
 import { documentStore, projectStore } from '@/lib/store';
@@ -24,6 +24,8 @@ export default function DocumentsPage() {
   const [content, setContent] = useState('');
   const [projectId, setProjectId] = useState<string>('none');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [filterProject, setFilterProject] = useState<string>('all');
 
   const openCreate = () => { setEditing(null); setTitle(''); setContent(''); setProjectId('none'); setDialogOpen(true); };
   const openEdit = (e: React.MouseEvent, d: Document) => { e.stopPropagation(); setEditing(d); setTitle(d.title); setContent(d.content); setProjectId(d.projectId || 'none'); setDialogOpen(true); };
@@ -41,6 +43,12 @@ export default function DocumentsPage() {
 
   const toggleExpand = (id: string) => setExpandedId(prev => prev === id ? null : id);
 
+  const filtered = docs.filter(d => {
+    if (filterProject !== 'all' && d.projectId !== filterProject) return false;
+    const q = search.toLowerCase();
+    return !q || d.title.toLowerCase().includes(q) || d.content.toLowerCase().includes(q);
+  });
+
   return (
     <AppLayout>
       <div className="animate-fade-in">
@@ -49,16 +57,30 @@ export default function DocumentsPage() {
           <Button onClick={openCreate} className="gap-2"><Plus className="h-4 w-4" /> New Document</Button>
         </div>
 
+        <div className="mb-6 flex items-center gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input placeholder="Search documents..." value={search} onChange={e => setSearch(e.target.value)} className="bg-secondary border-border pl-9" />
+          </div>
+          <Select value={filterProject} onValueChange={setFilterProject}>
+            <SelectTrigger className="w-48 bg-secondary border-border"><SelectValue /></SelectTrigger>
+            <SelectContent className="bg-card border-border">
+              <SelectItem value="all">All Projects</SelectItem>
+              {projects.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+
         {loading ? (
           <div className="space-y-3">{[1, 2, 3].map(i => <Skeleton key={i} className="h-20 w-full rounded-xl" />)}</div>
-        ) : docs.length === 0 ? (
+        ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-20">
-            <p className="mb-4 text-muted-foreground">No documents yet</p>
-            <Button onClick={openCreate} variant="outline">Create your first document</Button>
+            <p className="mb-4 text-muted-foreground">{search || filterProject !== 'all' ? 'No matching documents' : 'No documents yet'}</p>
+            {!search && filterProject === 'all' && <Button onClick={openCreate} variant="outline">Create your first document</Button>}
           </div>
         ) : (
           <div className="space-y-3">
-            {docs.map(doc => {
+            {filtered.map(doc => {
               const project = doc.projectId ? projects.find(p => p.id === doc.projectId) : null;
               const isExpanded = expandedId === doc.id;
               return (
