@@ -168,7 +168,7 @@ export default function ProjectDetail() {
                       <button onClick={(e) => { e.stopPropagation(); deleteSnippet(snip.id); }} className="rounded-md p-1.5 hover:bg-destructive/20 text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
                     </div>
                   </div>
-                  <pre className="overflow-x-auto rounded-lg border border-border bg-background p-3 text-sm font-mono text-success"><code>{snip.code}</code></pre>
+                  <pre className="overflow-x-auto whitespace-pre-wrap break-all rounded-lg border border-border bg-background p-3 text-sm font-mono text-success"><code>{snip.code}</code></pre>
                 </div>
               ))}
             </div>
