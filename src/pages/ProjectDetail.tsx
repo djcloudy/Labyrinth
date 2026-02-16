@@ -194,7 +194,7 @@ export default function ProjectDetail() {
 
         {/* View Document Dialog */}
         <Dialog open={!!viewDoc} onOpenChange={(open) => !open && setViewDoc(null)}>
-          <DialogContent className="bg-card border-border max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogContent className="bg-card border-border max-w-4xl w-[90vw] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{viewDoc?.title}</DialogTitle>
             </DialogHeader>
@@ -217,6 +217,9 @@ export default function ProjectDetail() {
               )}
             </div>
             <div className="flex justify-end gap-2 pt-4 border-t border-border">
+              <Button variant="outline" size="sm" onClick={() => { if (viewDoc?.content) { navigator.clipboard.writeText(viewDoc.content); } }}>
+                <Copy className="h-3.5 w-3.5 mr-1.5" /> Copy
+              </Button>
               <Button variant="outline" size="sm" onClick={() => { if (viewDoc) { openDocEdit(viewDoc); setViewDoc(null); } }}>
                 <Pencil className="h-3.5 w-3.5 mr-1.5" /> Edit
               </Button>
