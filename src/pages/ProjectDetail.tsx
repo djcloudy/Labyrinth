@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Pencil, Trash2, FileText, Code2, ListTodo, Plus, Circle, Clock, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Pencil, Trash2, FileText, Code2, ListTodo, Circle, Clock, CheckCircle2, Copy, Check, ChevronDown, ChevronRight } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 import AppLayout from '@/components/AppLayout';
 import { projectStore, documentStore, snippetStore, taskStore } from '@/lib/store';
@@ -34,12 +34,18 @@ export default function ProjectDetail() {
   const { data: snippets, loading: loadingSnippets, refresh: refreshSnippets } = useStore(useCallback(() => snippetStore.getByProject(id!), [id]));
   const { data: tasks, loading: loadingTasks, refresh: refreshTasks } = useStore(useCallback(() => taskStore.getByProject(id!), [id]));
 
+  // Edit dialogs
   const [docDialog, setDocDialog] = useState(false);
   const [snippetDialog, setSnippetDialog] = useState(false);
   const [taskDialog, setTaskDialog] = useState(false);
   const [editingDoc, setEditingDoc] = useState<Document | null>(null);
   const [editingSnippet, setEditingSnippet] = useState<Snippet | null>(null);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+
+  // View dialogs
+  const [viewDoc, setViewDoc] = useState<Document | null>(null);
+  const [viewSnippet, setViewSnippet] = useState<Snippet | null>(null);
+  const [viewTask, setViewTask] = useState<Task | null>(null);
 
   const [docTitle, setDocTitle] = useState('');
   const [docContent, setDocContent] = useState('');
@@ -50,6 +56,7 @@ export default function ProjectDetail() {
   const [taskDesc, setTaskDesc] = useState('');
   const [taskStatus, setTaskStatus] = useState<TaskStatus>('TODO');
   const [taskPriority, setTaskPriority] = useState<TaskPriority>('MEDIUM');
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   if (project === undefined) return <AppLayout><Skeleton className="h-8 w-48" /></AppLayout>;
   if (project === null) return <AppLayout><p className="text-muted-foreground">Project not found.</p></AppLayout>;
@@ -57,18 +64,24 @@ export default function ProjectDetail() {
   const openDocCreate = () => { setEditingDoc(null); setDocTitle(''); setDocContent(''); setDocDialog(true); };
   const openDocEdit = (d: Document) => { setEditingDoc(d); setDocTitle(d.title); setDocContent(d.content); setDocDialog(true); };
   const saveDoc = async () => { if (!docTitle.trim()) return; if (editingDoc) await documentStore.update(editingDoc.id, { title: docTitle, content: docContent }); else await documentStore.create({ title: docTitle, content: docContent, projectId: id! }); setDocDialog(false); refreshDocs(); };
-  const deleteDoc = async (docId: string) => { await documentStore.delete(docId); refreshDocs(); };
+  const deleteDoc = async (docId: string) => { await documentStore.delete(docId); refreshDocs(); setViewDoc(null); };
 
   const openSnipCreate = () => { setEditingSnippet(null); setSnipTitle(''); setSnipCode(''); setSnipLang('BASH'); setSnippetDialog(true); };
   const openSnipEdit = (s: Snippet) => { setEditingSnippet(s); setSnipTitle(s.title); setSnipCode(s.code); setSnipLang(s.language); setSnippetDialog(true); };
   const saveSnippet = async () => { if (!snipTitle.trim()) return; if (editingSnippet) await snippetStore.update(editingSnippet.id, { title: snipTitle, code: snipCode, language: snipLang }); else await snippetStore.create({ title: snipTitle, code: snipCode, language: snipLang, projectId: id! }); setSnippetDialog(false); refreshSnippets(); };
-  const deleteSnippet = async (snipId: string) => { await snippetStore.delete(snipId); refreshSnippets(); };
+  const deleteSnippet = async (snipId: string) => { await snippetStore.delete(snipId); refreshSnippets(); setViewSnippet(null); };
 
   const openTaskCreate = () => { setEditingTask(null); setTaskTitle(''); setTaskDesc(''); setTaskStatus('TODO'); setTaskPriority('MEDIUM'); setTaskDialog(true); };
   const openTaskEdit = (t: Task) => { setEditingTask(t); setTaskTitle(t.title); setTaskDesc(t.description); setTaskStatus(t.status); setTaskPriority(t.priority); setTaskDialog(true); };
   const saveTask = async () => { if (!taskTitle.trim()) return; if (editingTask) await taskStore.update(editingTask.id, { title: taskTitle, description: taskDesc, status: taskStatus, priority: taskPriority }); else await taskStore.create({ title: taskTitle, description: taskDesc, status: taskStatus, priority: taskPriority, projectId: id! }); setTaskDialog(false); refreshTasks(); };
-  const deleteTask = async (taskId: string) => { await taskStore.delete(taskId); refreshTasks(); };
+  const deleteTask = async (taskId: string) => { await taskStore.delete(taskId); refreshTasks(); setViewTask(null); };
   const cycleTaskStatus = async (task: Task) => { const next: Record<TaskStatus, TaskStatus> = { TODO: 'IN_PROGRESS', IN_PROGRESS: 'DONE', DONE: 'TODO' }; await taskStore.update(task.id, { status: next[task.status] }); refreshTasks(); };
+
+  const handleCopy = async (snippetId: string, code: string) => {
+    await navigator.clipboard.writeText(code);
+    setCopiedId(snippetId);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
 
   const handleDeleteProject = async () => { await projectStore.delete(id!); navigate('/projects'); };
 
@@ -100,15 +113,15 @@ export default function ProjectDetail() {
           {loadingDocs ? <Skeleton className="h-16 w-full" /> : docs.length === 0 ? <p className="text-sm text-muted-foreground">No documents yet.</p> : (
             <div className="space-y-3">
               {docs.map(doc => (
-                <div key={doc.id} className="group rounded-xl border border-border bg-card p-4 hover:border-info/30 transition-colors cursor-pointer" onClick={() => navigate(`/documents?doc=${doc.id}`)}>
+                <div key={doc.id} className="group rounded-xl border border-border bg-card p-4 hover:border-info/30 transition-colors cursor-pointer" onClick={() => setViewDoc(doc)}>
                   <div className="flex items-center justify-between">
-                    <div>
+                    <div className="min-w-0 flex-1">
                       <h3 className="font-semibold text-foreground">{doc.title}</h3>
-                      <p className="mt-1 line-clamp-1 text-sm text-muted-foreground">{doc.content || 'Empty document'}</p>
+                      <p className="mt-1 line-clamp-2 text-sm text-muted-foreground break-words">{doc.content || 'Empty document'}</p>
                     </div>
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => openDocEdit(doc)} className="rounded-md p-1.5 hover:bg-secondary text-muted-foreground hover:text-foreground"><Pencil className="h-3.5 w-3.5" /></button>
-                      <button onClick={() => deleteDoc(doc.id)} className="rounded-md p-1.5 hover:bg-destructive/20 text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-2">
+                      <button onClick={(e) => { e.stopPropagation(); openDocEdit(doc); }} className="rounded-md p-1.5 hover:bg-secondary text-muted-foreground hover:text-foreground"><Pencil className="h-3.5 w-3.5" /></button>
+                      <button onClick={(e) => { e.stopPropagation(); deleteDoc(doc.id); }} className="rounded-md p-1.5 hover:bg-destructive/20 text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
                     </div>
                   </div>
                 </div>
@@ -128,16 +141,16 @@ export default function ProjectDetail() {
               {tasks.map(task => {
                 const StatusIcon = STATUS_ICONS[task.status].icon;
                 return (
-                  <div key={task.id} className="group flex items-center gap-3 rounded-lg border border-border bg-card p-3 hover:border-warning/30 transition-colors cursor-pointer" onClick={() => navigate(`/tasks?task=${task.id}`)}>
+                  <div key={task.id} className="group flex items-center gap-3 rounded-lg border border-border bg-card p-3 hover:border-warning/30 transition-colors cursor-pointer" onClick={() => setViewTask(task)}>
                     <button onClick={(e) => { e.stopPropagation(); cycleTaskStatus(task); }} title="Cycle status">
                       <StatusIcon className={cn('h-4 w-4', STATUS_ICONS[task.status].className)} />
                     </button>
                     <div className="min-w-0 flex-1">
                       <p className={cn("text-sm font-medium text-foreground", task.status === 'DONE' && 'line-through text-muted-foreground')}>{task.title}</p>
-                      {task.description && <p className="text-xs text-muted-foreground line-clamp-1">{task.description}</p>}
+                      {task.description && <p className="text-xs text-muted-foreground line-clamp-1 break-words">{task.description}</p>}
                     </div>
-                    <span className={cn('rounded px-1.5 py-0.5 text-[10px] font-bold', PRIORITY_COLORS[task.priority])}>{task.priority}</span>
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <span className={cn('rounded px-1.5 py-0.5 text-[10px] font-bold shrink-0', PRIORITY_COLORS[task.priority])}>{task.priority}</span>
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                       <button onClick={(e) => { e.stopPropagation(); openTaskEdit(task); }} className="rounded-md p-1.5 hover:bg-secondary text-muted-foreground hover:text-foreground"><Pencil className="h-3.5 w-3.5" /></button>
                       <button onClick={(e) => { e.stopPropagation(); deleteTask(task.id); }} className="rounded-md p-1.5 hover:bg-destructive/20 text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
                     </div>
@@ -157,25 +170,106 @@ export default function ProjectDetail() {
           {loadingSnippets ? <Skeleton className="h-16 w-full" /> : snippets.length === 0 ? <p className="text-sm text-muted-foreground">No snippets yet.</p> : (
             <div className="space-y-3">
               {snippets.map(snip => (
-                <div key={snip.id} className="group rounded-xl border border-border bg-card p-4 hover:border-success/30 transition-colors cursor-pointer" onClick={() => navigate(`/snippets?snippet=${snip.id}`)}>
-                  <div className="flex items-center justify-between mb-2">
+                <div key={snip.id} className="group rounded-xl border border-border bg-card p-4 hover:border-success/30 transition-colors cursor-pointer" onClick={() => setViewSnippet(snip)}>
+                  <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <h3 className="font-semibold text-foreground">{snip.title}</h3>
                       <span className={`rounded px-2 py-0.5 text-xs font-bold ${LANG_COLORS[snip.language]}`}>{snip.language}</span>
                     </div>
                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button onClick={(e) => { e.stopPropagation(); handleCopy(snip.id, snip.code); }} className="rounded-md p-1.5 hover:bg-secondary text-muted-foreground hover:text-foreground" title="Copy">
+                        {copiedId === snip.id ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
+                      </button>
                       <button onClick={(e) => { e.stopPropagation(); openSnipEdit(snip); }} className="rounded-md p-1.5 hover:bg-secondary text-muted-foreground hover:text-foreground"><Pencil className="h-3.5 w-3.5" /></button>
                       <button onClick={(e) => { e.stopPropagation(); deleteSnippet(snip.id); }} className="rounded-md p-1.5 hover:bg-destructive/20 text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
                     </div>
                   </div>
-                  <pre className="overflow-x-auto whitespace-pre-wrap break-all rounded-lg border border-border bg-background p-3 text-sm font-mono text-success"><code>{snip.code}</code></pre>
+                  <p className="mt-1 text-xs text-muted-foreground line-clamp-1 font-mono">{snip.code}</p>
                 </div>
               ))}
             </div>
           )}
         </div>
 
-        {/* Doc Dialog */}
+        {/* View Document Dialog */}
+        <Dialog open={!!viewDoc} onOpenChange={(open) => !open && setViewDoc(null)}>
+          <DialogContent className="bg-card border-border max-w-2xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>{viewDoc?.title}</DialogTitle>
+            </DialogHeader>
+            <div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap break-words text-foreground">
+              {viewDoc?.content || <span className="text-muted-foreground italic">Empty document</span>}
+            </div>
+            <div className="flex justify-end gap-2 pt-4 border-t border-border">
+              <Button variant="outline" size="sm" onClick={() => { if (viewDoc) { openDocEdit(viewDoc); setViewDoc(null); } }}>
+                <Pencil className="h-3.5 w-3.5 mr-1.5" /> Edit
+              </Button>
+              <Button variant="destructive" size="sm" onClick={() => viewDoc && deleteDoc(viewDoc.id)}>
+                <Trash2 className="h-3.5 w-3.5 mr-1.5" /> Delete
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* View Snippet Dialog */}
+        <Dialog open={!!viewSnippet} onOpenChange={(open) => !open && setViewSnippet(null)}>
+          <DialogContent className="bg-card border-border max-w-2xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <div className="flex items-center gap-2">
+                <DialogTitle>{viewSnippet?.title}</DialogTitle>
+                {viewSnippet && <span className={`rounded px-2 py-0.5 text-xs font-bold ${LANG_COLORS[viewSnippet.language]}`}>{viewSnippet.language}</span>}
+              </div>
+            </DialogHeader>
+            <pre className="overflow-x-auto whitespace-pre-wrap break-all rounded-lg border border-border bg-background p-4 text-sm font-mono text-success">
+              <code>{viewSnippet?.code}</code>
+            </pre>
+            <div className="flex justify-end gap-2 pt-4 border-t border-border">
+              <Button variant="outline" size="sm" onClick={() => viewSnippet && handleCopy(viewSnippet.id, viewSnippet.code)}>
+                {copiedId === viewSnippet?.id ? <Check className="h-3.5 w-3.5 mr-1.5 text-success" /> : <Copy className="h-3.5 w-3.5 mr-1.5" />}
+                {copiedId === viewSnippet?.id ? 'Copied' : 'Copy'}
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => { if (viewSnippet) { openSnipEdit(viewSnippet); setViewSnippet(null); } }}>
+                <Pencil className="h-3.5 w-3.5 mr-1.5" /> Edit
+              </Button>
+              <Button variant="destructive" size="sm" onClick={() => viewSnippet && deleteSnippet(viewSnippet.id)}>
+                <Trash2 className="h-3.5 w-3.5 mr-1.5" /> Delete
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* View Task Dialog */}
+        <Dialog open={!!viewTask} onOpenChange={(open) => !open && setViewTask(null)}>
+          <DialogContent className="bg-card border-border max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                {viewTask && (() => { const SI = STATUS_ICONS[viewTask.status]; return <SI.icon className={cn('h-5 w-5', SI.className)} />; })()}
+                <span className={cn(viewTask?.status === 'DONE' && 'line-through text-muted-foreground')}>{viewTask?.title}</span>
+              </DialogTitle>
+            </DialogHeader>
+            {viewTask && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <span className={cn('rounded px-2 py-0.5 text-xs font-bold', PRIORITY_COLORS[viewTask.priority])}>{viewTask.priority}</span>
+                  <span className="text-xs text-muted-foreground">{viewTask.status.replace('_', ' ')}</span>
+                </div>
+                {viewTask.description && (
+                  <p className="text-sm text-foreground whitespace-pre-wrap break-words">{viewTask.description}</p>
+                )}
+              </div>
+            )}
+            <div className="flex justify-end gap-2 pt-4 border-t border-border">
+              <Button variant="outline" size="sm" onClick={() => { if (viewTask) { openTaskEdit(viewTask); setViewTask(null); } }}>
+                <Pencil className="h-3.5 w-3.5 mr-1.5" /> Edit
+              </Button>
+              <Button variant="destructive" size="sm" onClick={() => viewTask && deleteTask(viewTask.id)}>
+                <Trash2 className="h-3.5 w-3.5 mr-1.5" /> Delete
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Doc Edit Dialog */}
         <Dialog open={docDialog} onOpenChange={setDocDialog}>
           <DialogContent className="bg-card border-border">
             <DialogHeader><DialogTitle>{editingDoc ? 'Edit Document' : 'New Document'}</DialogTitle></DialogHeader>
@@ -187,7 +281,7 @@ export default function ProjectDetail() {
           </DialogContent>
         </Dialog>
 
-        {/* Snippet Dialog */}
+        {/* Snippet Edit Dialog */}
         <Dialog open={snippetDialog} onOpenChange={setSnippetDialog}>
           <DialogContent className="bg-card border-border">
             <DialogHeader><DialogTitle>{editingSnippet ? 'Edit Snippet' : 'New Snippet'}</DialogTitle></DialogHeader>
@@ -206,7 +300,8 @@ export default function ProjectDetail() {
             </div>
           </DialogContent>
         </Dialog>
-        {/* Task Dialog */}
+
+        {/* Task Edit Dialog */}
         <Dialog open={taskDialog} onOpenChange={setTaskDialog}>
           <DialogContent className="bg-card border-border">
             <DialogHeader><DialogTitle>{editingTask ? 'Edit Task' : 'New Task'}</DialogTitle></DialogHeader>
