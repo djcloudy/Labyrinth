@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Plus, Pencil, Trash2, ChevronDown, Search } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import AppLayout from '@/components/AppLayout';
@@ -23,7 +24,8 @@ export default function DocumentsPage() {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [projectId, setProjectId] = useState<string>('none');
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [searchParams] = useSearchParams();
+  const [expandedId, setExpandedId] = useState<string | null>(searchParams.get('doc'));
   const [search, setSearch] = useState('');
   const [filterProject, setFilterProject] = useState<string>('all');
 

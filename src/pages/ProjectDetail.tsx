@@ -100,7 +100,7 @@ export default function ProjectDetail() {
           {loadingDocs ? <Skeleton className="h-16 w-full" /> : docs.length === 0 ? <p className="text-sm text-muted-foreground">No documents yet.</p> : (
             <div className="space-y-3">
               {docs.map(doc => (
-                <div key={doc.id} className="group rounded-xl border border-border bg-card p-4 hover:border-info/30 transition-colors">
+                <div key={doc.id} className="group rounded-xl border border-border bg-card p-4 hover:border-info/30 transition-colors cursor-pointer" onClick={() => navigate(`/documents?doc=${doc.id}`)}>
                   <div className="flex items-center justify-between">
                     <div>
                       <h3 className="font-semibold text-foreground">{doc.title}</h3>
