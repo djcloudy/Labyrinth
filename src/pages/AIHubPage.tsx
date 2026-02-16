@@ -6,11 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
-import { ScrollArea } from '@/components/ui/scroll-area';
-
-const API_BASE = import.meta.env.VITE_API_URL || '';
 
 type Provider = 'openai' | 'gemini' | 'ollama';
 type Message = { role: 'user' | 'assistant' | 'system'; content: string };
@@ -27,10 +24,26 @@ const PROVIDER_LABELS: Record<Provider, string> = {
   ollama: 'Ollama (Local)',
 };
 
+const PROVIDER_URLS: Record<Provider, string> = {
+  openai: 'https://api.openai.com/v1/chat/completions',
+  gemini: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
+  ollama: '', // set dynamically
+};
+
 interface AISettings {
   openaiApiKey?: string;
   geminiApiKey?: string;
   ollamaUrl?: string;
+}
+
+const SETTINGS_KEY = 'labyrinth_ai_settings';
+
+function loadSettings(): AISettings {
+  try { return JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'); } catch { return {}; }
+}
+
+function persistSettings(s: AISettings) {
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
 }
 
 export default function AIHubPage() {
@@ -41,38 +54,20 @@ export default function AIHubPage() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [settings, setSettings] = useState<AISettings>({});
-  const [settingsLoaded, setSettingsLoaded] = useState(false);
+  const [settings, setSettings] = useState<AISettings>(loadSettings);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Load settings
   useEffect(() => {
-    fetch(`${API_BASE}/api/settings`).then(r => r.json()).then(s => {
-      setSettings(s);
-      setSettingsLoaded(true);
-    }).catch(() => setSettingsLoaded(true));
-  }, []);
-
-  // Auto-scroll
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages]);
 
-  // Update model when provider changes
-  useEffect(() => {
-    setModel(PROVIDER_MODELS[provider][0]);
-  }, [provider]);
+  useEffect(() => { setModel(PROVIDER_MODELS[provider][0]); }, [provider]);
 
-  const saveSettings = async (newSettings: AISettings) => {
-    setSettings(newSettings);
-    await fetch(`${API_BASE}/api/settings`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newSettings),
-    });
+  const updateSettings = (patch: Partial<AISettings>) => {
+    const next = { ...settings, ...patch };
+    setSettings(next);
+    persistSettings(next);
   };
 
   const sendMessage = useCallback(async () => {
@@ -81,49 +76,62 @@ export default function AIHubPage() {
 
     setError(null);
     const userMsg: Message = { role: 'user', content: text };
-    const newMessages = [...messages, userMsg];
-    setMessages(newMessages);
+    const allMessages = [...messages, userMsg];
+    setMessages(allMessages);
     setInput('');
     setIsStreaming(true);
 
     let assistantContent = '';
 
     try {
-      const res = await fetch(`${API_BASE}/api/ai/chat`, {
+      let url: string;
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+
+      if (provider === 'ollama') {
+        const base = settings.ollamaUrl || 'http://localhost:11434';
+        url = `${base}/v1/chat/completions`;
+      } else if (provider === 'gemini') {
+        const key = settings.geminiApiKey;
+        if (!key) throw new Error('No Gemini API key configured. Click "API Keys" to set one.');
+        url = `${PROVIDER_URLS.gemini}`;
+        headers['Authorization'] = `Bearer ${key}`;
+      } else {
+        const key = settings.openaiApiKey;
+        if (!key) throw new Error('No OpenAI API key configured. Click "API Keys" to set one.');
+        url = PROVIDER_URLS.openai;
+        headers['Authorization'] = `Bearer ${key}`;
+      }
+
+      const res = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: newMessages,
-          provider,
-          model,
-          apiKey: provider === 'openai' ? settings.openaiApiKey : provider === 'gemini' ? settings.geminiApiKey : undefined,
-          ollamaUrl: settings.ollamaUrl,
-        }),
+        headers,
+        body: JSON.stringify({ model, messages: allMessages, stream: true }),
       });
 
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: 'Request failed' }));
-        throw new Error(err.error || `HTTP ${res.status}`);
+        const errText = await res.text();
+        let errMsg: string;
+        try { errMsg = JSON.parse(errText)?.error?.message || errText; } catch { errMsg = errText; }
+        throw new Error(`${res.status}: ${errMsg}`);
       }
 
       if (!res.body) throw new Error('No response body');
 
+      setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
+
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
-
-      // Add empty assistant message
-      setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         buffer += decoder.decode(value, { stream: true });
 
-        let newlineIdx: number;
-        while ((newlineIdx = buffer.indexOf('\n')) !== -1) {
-          let line = buffer.slice(0, newlineIdx);
-          buffer = buffer.slice(newlineIdx + 1);
+        let idx: number;
+        while ((idx = buffer.indexOf('\n')) !== -1) {
+          let line = buffer.slice(0, idx);
+          buffer = buffer.slice(idx + 1);
           if (line.endsWith('\r')) line = line.slice(0, -1);
           if (!line.startsWith('data: ')) continue;
           const jsonStr = line.slice(6).trim();
@@ -136,16 +144,15 @@ export default function AIHubPage() {
               const content = assistantContent;
               setMessages(prev => prev.map((m, i) => i === prev.length - 1 ? { ...m, content } : m));
             }
-          } catch { /* partial JSON, wait for more */ }
+          } catch { /* partial JSON */ }
         }
       }
     } catch (err: any) {
       setError(err.message);
       if (!assistantContent) {
-        // Remove empty assistant message if nothing streamed
-        setMessages(prev => prev[prev.length - 1]?.role === 'assistant' && !prev[prev.length - 1].content
-          ? prev.slice(0, -1)
-          : prev
+        setMessages(prev =>
+          prev[prev.length - 1]?.role === 'assistant' && !prev[prev.length - 1].content
+            ? prev.slice(0, -1) : prev
         );
       }
     } finally {
@@ -155,14 +162,10 @@ export default function AIHubPage() {
   }, [input, messages, provider, model, settings, isStreaming]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   };
 
   const clearChat = () => { setMessages([]); setError(null); };
-
   const hasApiKey = provider === 'ollama' || settings[`${provider}ApiKey` as keyof AISettings];
 
   return (
@@ -205,11 +208,10 @@ export default function AIHubPage() {
           </div>
         </div>
 
-        {/* Warning if no API key */}
-        {!hasApiKey && settingsLoaded && (
+        {!hasApiKey && (
           <div className="mb-3 flex items-center gap-2 rounded-lg border border-warning/30 bg-warning/10 px-4 py-2 text-sm text-warning">
             <AlertCircle className="h-4 w-4 shrink-0" />
-            No API key configured for {PROVIDER_LABELS[provider]}. Click "API Keys" to configure, or set <code className="rounded bg-secondary px-1.5 py-0.5 text-xs font-mono">{provider === 'openai' ? 'OPENAI_API_KEY' : 'GEMINI_API_KEY'}</code> as an env variable.
+            No API key configured for {PROVIDER_LABELS[provider]}. Click "API Keys" to configure.
           </div>
         )}
 
@@ -234,9 +236,7 @@ export default function AIHubPage() {
                   )}
                   <div className={cn(
                     'max-w-[75%] rounded-xl px-4 py-3 text-sm',
-                    msg.role === 'user'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-secondary text-foreground'
+                    msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-foreground'
                   )}>
                     {msg.role === 'assistant' ? (
                       <div className="prose prose-sm prose-invert max-w-none prose-p:my-1 prose-pre:bg-background prose-pre:border prose-pre:border-border prose-code:text-success">
@@ -260,7 +260,6 @@ export default function AIHubPage() {
           )}
         </div>
 
-        {/* Error */}
         {error && (
           <div className="mt-2 flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive">
             <AlertCircle className="h-4 w-4 shrink-0" />
@@ -287,9 +286,10 @@ export default function AIHubPage() {
 
         {/* Settings Dialog */}
         <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
-          <DialogContent className="bg-card border-border">
+          <DialogContent className="bg-card border-border" aria-describedby="ai-settings-desc">
             <DialogHeader>
               <DialogTitle>AI Provider Settings</DialogTitle>
+              <DialogDescription id="ai-settings-desc">Configure API keys for your AI providers. Keys are stored locally in your browser.</DialogDescription>
             </DialogHeader>
             <div className="space-y-5">
               <div>
@@ -298,10 +298,9 @@ export default function AIHubPage() {
                   type="password"
                   placeholder="sk-..."
                   value={settings.openaiApiKey || ''}
-                  onChange={e => saveSettings({ ...settings, openaiApiKey: e.target.value })}
+                  onChange={e => updateSettings({ openaiApiKey: e.target.value })}
                   className="bg-secondary border-border font-mono text-sm"
                 />
-                <p className="mt-1 text-xs text-muted-foreground">Or set <code className="rounded bg-secondary px-1 py-0.5">OPENAI_API_KEY</code> env var</p>
               </div>
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-foreground">Gemini API Key</label>
@@ -309,20 +308,19 @@ export default function AIHubPage() {
                   type="password"
                   placeholder="AIza..."
                   value={settings.geminiApiKey || ''}
-                  onChange={e => saveSettings({ ...settings, geminiApiKey: e.target.value })}
+                  onChange={e => updateSettings({ geminiApiKey: e.target.value })}
                   className="bg-secondary border-border font-mono text-sm"
                 />
-                <p className="mt-1 text-xs text-muted-foreground">Or set <code className="rounded bg-secondary px-1 py-0.5">GEMINI_API_KEY</code> env var</p>
               </div>
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-foreground">Ollama URL</label>
                 <Input
                   placeholder="http://localhost:11434"
                   value={settings.ollamaUrl || ''}
-                  onChange={e => saveSettings({ ...settings, ollamaUrl: e.target.value })}
+                  onChange={e => updateSettings({ ollamaUrl: e.target.value })}
                   className="bg-secondary border-border font-mono text-sm"
                 />
-                <p className="mt-1 text-xs text-muted-foreground">Or set <code className="rounded bg-secondary px-1 py-0.5">OLLAMA_URL</code> env var. Default: http://localhost:11434</p>
+                <p className="mt-1 text-xs text-muted-foreground">Default: http://localhost:11434</p>
               </div>
             </div>
           </DialogContent>
