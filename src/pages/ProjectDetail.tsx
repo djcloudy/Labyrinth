@@ -1,5 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Pencil, Trash2, FileText, Code2, ListTodo, Circle, Clock, CheckCircle2, Copy, Check, ChevronDown, ChevronRight } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 import { useState, useEffect, useCallback } from 'react';
 import AppLayout from '@/components/AppLayout';
 import { projectStore, documentStore, snippetStore, taskStore } from '@/lib/store';
@@ -197,8 +198,23 @@ export default function ProjectDetail() {
             <DialogHeader>
               <DialogTitle>{viewDoc?.title}</DialogTitle>
             </DialogHeader>
-            <div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap break-words text-foreground">
-              {viewDoc?.content || <span className="text-muted-foreground italic">Empty document</span>}
+            <div className="prose prose-sm prose-invert max-w-none text-foreground
+              prose-headings:text-foreground prose-headings:font-semibold
+              prose-p:text-muted-foreground prose-p:leading-relaxed
+              prose-a:text-primary prose-a:no-underline hover:prose-a:underline
+              prose-strong:text-foreground
+              prose-code:rounded prose-code:bg-secondary prose-code:px-1.5 prose-code:py-0.5 prose-code:text-xs prose-code:text-foreground prose-code:before:content-none prose-code:after:content-none
+              prose-pre:rounded-lg prose-pre:border prose-pre:border-border prose-pre:bg-background
+              prose-ul:text-muted-foreground prose-ol:text-muted-foreground
+              prose-li:marker:text-muted-foreground
+              prose-blockquote:border-primary/50 prose-blockquote:text-muted-foreground
+              prose-hr:border-border
+            ">
+              {viewDoc?.content ? (
+                <ReactMarkdown>{viewDoc.content}</ReactMarkdown>
+              ) : (
+                <span className="text-muted-foreground italic">Empty document</span>
+              )}
             </div>
             <div className="flex justify-end gap-2 pt-4 border-t border-border">
               <Button variant="outline" size="sm" onClick={() => { if (viewDoc) { openDocEdit(viewDoc); setViewDoc(null); } }}>
