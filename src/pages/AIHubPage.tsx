@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Bot, Send, Settings2, Trash2, Loader2, AlertCircle } from 'lucide-react';
+import { Bot, Send, Settings2, Trash2, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import AppLayout from '@/components/AppLayout';
 import { Button } from '@/components/ui/button';
@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
+import { useAIModels } from '@/hooks/use-ai-models';
 
 type Provider = 'openai' | 'gemini' | 'ollama';
 type Message = { role: 'user' | 'assistant' | 'system'; content: string };
@@ -15,7 +16,7 @@ type Message = { role: 'user' | 'assistant' | 'system'; content: string };
 const PROVIDER_MODELS: Record<Provider, string[]> = {
   openai: ['gpt-4o-mini', 'gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo'],
   gemini: ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-2.5-pro-preview-06-05'],
-  ollama: ['llama3', 'mistral', 'codellama', 'phi3', 'gemma2'],
+  ollama: ['llama3', 'mistral', 'codellama'],
 };
 
 const PROVIDER_LABELS: Record<Provider, string> = {
@@ -55,6 +56,7 @@ export default function AIHubPage() {
   const [error, setError] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settings, setSettings] = useState<AISettings>(loadSettings);
+  const { models: availableModels, loading: modelsLoading, refetch: refetchModels } = useAIModels(provider, settings);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -62,7 +64,7 @@ export default function AIHubPage() {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages]);
 
-  useEffect(() => { setModel(PROVIDER_MODELS[provider][0]); }, [provider]);
+  useEffect(() => { setModel(availableModels[0] || PROVIDER_MODELS[provider][0]); }, [provider, availableModels]);
 
   const updateSettings = (patch: Partial<AISettings>) => {
     const next = { ...settings, ...patch };
@@ -190,12 +192,22 @@ export default function AIHubPage() {
                 <SelectTrigger className="w-48 bg-secondary border-border h-8 text-xs">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-card border-border">
-                  {PROVIDER_MODELS[provider].map(m => (
+                <SelectContent className="bg-card border-border max-h-60">
+                  {availableModels.map(m => (
                     <SelectItem key={m} value={m}>{m}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={refetchModels}
+                disabled={modelsLoading}
+                className="h-8 w-8 p-0"
+                title="Refresh available models"
+              >
+                <RefreshCw className={cn("h-3.5 w-3.5", modelsLoading && "animate-spin")} />
+              </Button>
             </div>
           </div>
           <div className="flex gap-2">
