@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Image, Plus, Trash2, Upload, X, Pencil } from 'lucide-react';
+import { Image, Plus, Trash2, Upload, X, Pencil, Search } from 'lucide-react';
 import AppLayout from '@/components/AppLayout';
 import { mediaStore, projectStore } from '@/lib/store';
 import { useStore } from '@/hooks/use-store';
@@ -28,6 +28,8 @@ export default function MediaPage() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editTitle, setEditTitle] = useState('');
   const [editProjectId, setEditProjectId] = useState<string>('none');
+  const [search, setSearch] = useState('');
+  const [filterProject, setFilterProject] = useState<string>('all');
 
   const openEditMedia = (e: React.MouseEvent, item: MediaItem) => {
     e.stopPropagation();
@@ -46,11 +48,7 @@ export default function MediaPage() {
   };
 
   const openUpload = () => {
-    setTitle('');
-    setProjectId('none');
-    setPreview(null);
-    setFileData(null);
-    setFileType('');
+    setTitle(''); setProjectId('none'); setPreview(null); setFileData(null); setFileType('');
     setDialogOpen(true);
   };
 
@@ -60,11 +58,7 @@ export default function MediaPage() {
     setFileType(file.type);
     if (!title) setTitle(file.name.replace(/\.[^/.]+$/, ''));
     const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
-      setPreview(result);
-      setFileData(result);
-    };
+    reader.onload = () => { const result = reader.result as string; setPreview(result); setFileData(result); };
     reader.readAsDataURL(file);
   };
 
@@ -82,6 +76,12 @@ export default function MediaPage() {
     refresh();
   };
 
+  const filtered = media.filter(m => {
+    if (filterProject !== 'all' && m.projectId !== filterProject) return false;
+    const q = search.toLowerCase();
+    return !q || m.title.toLowerCase().includes(q);
+  });
+
   return (
     <AppLayout>
       <div className="animate-fade-in">
@@ -90,17 +90,31 @@ export default function MediaPage() {
           <Button onClick={openUpload} className="gap-2"><Plus className="h-4 w-4" /> Upload</Button>
         </div>
 
+        <div className="mb-6 flex items-center gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input placeholder="Search media..." value={search} onChange={e => setSearch(e.target.value)} className="bg-secondary border-border pl-9" />
+          </div>
+          <Select value={filterProject} onValueChange={setFilterProject}>
+            <SelectTrigger className="w-48 bg-secondary border-border"><SelectValue /></SelectTrigger>
+            <SelectContent className="bg-card border-border">
+              <SelectItem value="all">All Projects</SelectItem>
+              {projects.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+
         {loading ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{[1, 2, 3].map(i => <Skeleton key={i} className="aspect-video w-full rounded-xl" />)}</div>
-        ) : media.length === 0 ? (
+        ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-20">
             <Image className="mb-4 h-12 w-12 text-muted-foreground" />
-            <p className="mb-2 text-muted-foreground">No media yet</p>
-            <Button onClick={openUpload} variant="outline">Upload your first screenshot</Button>
+            <p className="mb-2 text-muted-foreground">{search || filterProject !== 'all' ? 'No matching media' : 'No media yet'}</p>
+            {!search && filterProject === 'all' && <Button onClick={openUpload} variant="outline">Upload your first screenshot</Button>}
           </div>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {media.map(item => {
+            {filtered.map(item => {
               const project = item.projectId ? projects.find(p => p.id === item.projectId) : null;
               return (
                 <div key={item.id} className="group relative rounded-xl border border-border bg-card overflow-hidden hover:border-primary/30 transition-colors">
@@ -145,10 +159,7 @@ export default function MediaPage() {
                   </button>
                 </div>
               ) : (
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="flex w-full flex-col items-center justify-center rounded-lg border-2 border-dashed border-border py-10 hover:border-primary/50 transition-colors"
-                >
+                <button onClick={() => fileInputRef.current?.click()} className="flex w-full flex-col items-center justify-center rounded-lg border-2 border-dashed border-border py-10 hover:border-primary/50 transition-colors">
                   <Upload className="mb-2 h-8 w-8 text-muted-foreground" />
                   <p className="text-sm text-muted-foreground">Click to select an image</p>
                 </button>
@@ -166,7 +177,7 @@ export default function MediaPage() {
           </DialogContent>
         </Dialog>
 
-        {/* Lightbox dialog */}
+        {/* Lightbox */}
         <Dialog open={!!viewImage} onOpenChange={() => setViewImage(null)}>
           <DialogContent className="bg-card border-border max-w-3xl">
             {viewImage && (
@@ -177,6 +188,7 @@ export default function MediaPage() {
             )}
           </DialogContent>
         </Dialog>
+
         {/* Edit media dialog */}
         <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
           <DialogContent className="bg-card border-border">

@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Plus, Pencil, Trash2, CheckCircle2, Circle, Clock } from 'lucide-react';
+import { Plus, Pencil, Trash2, CheckCircle2, Circle, Clock, Search } from 'lucide-react';
 import AppLayout from '@/components/AppLayout';
 import { taskStore, projectStore } from '@/lib/store';
 import { useStore } from '@/hooks/use-store';
@@ -37,6 +37,7 @@ export default function TasksPage() {
   const [priority, setPriority] = useState<TaskPriority>('MEDIUM');
   const [projectId, setProjectId] = useState<string>('');
   const [filterProject, setFilterProject] = useState<string>('all');
+  const [search, setSearch] = useState('');
 
   const openCreate = () => {
     setEditing(null); setTitle(''); setDescription(''); setStatus('TODO'); setPriority('MEDIUM');
@@ -65,7 +66,11 @@ export default function TasksPage() {
     refresh();
   };
 
-  const filtered = filterProject === 'all' ? tasks : tasks.filter(t => t.projectId === filterProject);
+  const filtered = tasks.filter(t => {
+    if (filterProject !== 'all' && t.projectId !== filterProject) return false;
+    const q = search.toLowerCase();
+    return !q || t.title.toLowerCase().includes(q) || t.description.toLowerCase().includes(q);
+  });
   const grouped: Record<TaskStatus, Task[]> = { TODO: [], IN_PROGRESS: [], DONE: [] };
   filtered.forEach(t => grouped[t.status]?.push(t));
 
@@ -75,17 +80,24 @@ export default function TasksPage() {
         <div className="mb-8 flex items-center justify-between">
           <h1 className="text-3xl font-bold text-foreground">Tasks</h1>
           <div className="flex items-center gap-3">
-            <Select value={filterProject} onValueChange={setFilterProject}>
-              <SelectTrigger className="w-48 bg-secondary border-border"><SelectValue /></SelectTrigger>
-              <SelectContent className="bg-card border-border">
-                <SelectItem value="all">All Projects</SelectItem>
-                {projects.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
             <Button onClick={openCreate} className="gap-2" disabled={projects.length === 0}>
               <Plus className="h-4 w-4" /> New Task
             </Button>
           </div>
+        </div>
+
+        <div className="mb-6 flex items-center gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input placeholder="Search tasks..." value={search} onChange={e => setSearch(e.target.value)} className="bg-secondary border-border pl-9" />
+          </div>
+          <Select value={filterProject} onValueChange={setFilterProject}>
+            <SelectTrigger className="w-48 bg-secondary border-border"><SelectValue /></SelectTrigger>
+            <SelectContent className="bg-card border-border">
+              <SelectItem value="all">All Projects</SelectItem>
+              {projects.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
         </div>
 
         {projects.length === 0 && !loading && (

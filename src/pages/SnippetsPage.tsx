@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Plus, Pencil, Trash2, Copy, Check } from 'lucide-react';
+import { Plus, Pencil, Trash2, Copy, Check, Search } from 'lucide-react';
 import AppLayout from '@/components/AppLayout';
 import { snippetStore, projectStore } from '@/lib/store';
 import { useStore } from '@/hooks/use-store';
@@ -25,6 +25,9 @@ export default function SnippetsPage() {
   const [language, setLanguage] = useState<SnippetLanguage>('BASH');
   const [projectId, setProjectId] = useState<string>('none');
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [filterProject, setFilterProject] = useState<string>('all');
+  const [filterLang, setFilterLang] = useState<string>('all');
 
   const openCreate = () => { setEditing(null); setTitle(''); setCode(''); setLanguage('BASH'); setProjectId('none'); setDialogOpen(true); };
   const openEdit = (s: Snippet) => { setEditing(s); setTitle(s.title); setCode(s.code); setLanguage(s.language); setProjectId(s.projectId || 'none'); setDialogOpen(true); };
@@ -46,6 +49,13 @@ export default function SnippetsPage() {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
+  const filtered = snippets.filter(s => {
+    if (filterProject !== 'all' && s.projectId !== filterProject) return false;
+    if (filterLang !== 'all' && s.language !== filterLang) return false;
+    const q = search.toLowerCase();
+    return !q || s.title.toLowerCase().includes(q) || s.code.toLowerCase().includes(q);
+  });
+
   return (
     <AppLayout>
       <div className="animate-fade-in">
@@ -54,16 +64,39 @@ export default function SnippetsPage() {
           <Button onClick={openCreate} className="gap-2"><Plus className="h-4 w-4" /> New Snippet</Button>
         </div>
 
+        <div className="mb-6 flex items-center gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input placeholder="Search snippets..." value={search} onChange={e => setSearch(e.target.value)} className="bg-secondary border-border pl-9" />
+          </div>
+          <Select value={filterLang} onValueChange={setFilterLang}>
+            <SelectTrigger className="w-36 bg-secondary border-border"><SelectValue /></SelectTrigger>
+            <SelectContent className="bg-card border-border">
+              <SelectItem value="all">All Languages</SelectItem>
+              <SelectItem value="BASH">BASH</SelectItem>
+              <SelectItem value="YAML">YAML</SelectItem>
+              <SelectItem value="PYTHON">PYTHON</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={filterProject} onValueChange={setFilterProject}>
+            <SelectTrigger className="w-48 bg-secondary border-border"><SelectValue /></SelectTrigger>
+            <SelectContent className="bg-card border-border">
+              <SelectItem value="all">All Projects</SelectItem>
+              {projects.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+
         {loading ? (
           <div className="space-y-4">{[1, 2].map(i => <Skeleton key={i} className="h-32 w-full rounded-xl" />)}</div>
-        ) : snippets.length === 0 ? (
+        ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-20">
-            <p className="mb-4 text-muted-foreground">No snippets yet</p>
-            <Button onClick={openCreate} variant="outline">Create your first snippet</Button>
+            <p className="mb-4 text-muted-foreground">{search || filterProject !== 'all' || filterLang !== 'all' ? 'No matching snippets' : 'No snippets yet'}</p>
+            {!search && filterProject === 'all' && filterLang === 'all' && <Button onClick={openCreate} variant="outline">Create your first snippet</Button>}
           </div>
         ) : (
           <div className="space-y-4">
-            {snippets.map(snip => {
+            {filtered.map(snip => {
               const project = snip.projectId ? projects.find(p => p.id === snip.projectId) : null;
               return (
                 <div key={snip.id} className="group rounded-xl border border-border bg-card p-5 hover:border-warning/30 transition-colors">

@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Trash2, Pencil } from 'lucide-react';
+import { Plus, Trash2, Pencil, Search } from 'lucide-react';
 import AppLayout from '@/components/AppLayout';
 import { projectStore } from '@/lib/store';
 import { useStore } from '@/hooks/use-store';
@@ -21,6 +21,7 @@ export default function ProjectsPage() {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [color, setColor] = useState(PROJECT_COLORS[0]);
+  const [search, setSearch] = useState('');
 
   const openCreate = () => { setEditing(null); setName(''); setDescription(''); setColor(PROJECT_COLORS[0]); setDialogOpen(true); };
   const openEdit = (p: Project, e: React.MouseEvent) => { e.stopPropagation(); setEditing(p); setName(p.name); setDescription(p.description); setColor(p.color); setDialogOpen(true); };
@@ -42,6 +43,11 @@ export default function ProjectsPage() {
     refresh();
   };
 
+  const filtered = projects.filter(p => {
+    const q = search.toLowerCase();
+    return !q || p.name.toLowerCase().includes(q) || p.description.toLowerCase().includes(q);
+  });
+
   return (
     <AppLayout>
       <div className="animate-fade-in">
@@ -52,18 +58,25 @@ export default function ProjectsPage() {
           </Button>
         </div>
 
+        <div className="mb-6">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input placeholder="Search projects..." value={search} onChange={e => setSearch(e.target.value)} className="bg-secondary border-border pl-9" />
+          </div>
+        </div>
+
         {loading ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {[1, 2, 3].map(i => <Skeleton key={i} className="h-28 w-full rounded-xl" />)}
           </div>
-        ) : projects.length === 0 ? (
+        ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-20">
-            <p className="mb-4 text-muted-foreground">No projects yet</p>
-            <Button onClick={openCreate} variant="outline">Create your first project</Button>
+            <p className="mb-4 text-muted-foreground">{search ? 'No matching projects' : 'No projects yet'}</p>
+            {!search && <Button onClick={openCreate} variant="outline">Create your first project</Button>}
           </div>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {projects.map(project => (
+            {filtered.map(project => (
               <div
                 key={project.id}
                 onClick={() => navigate(`/projects/${project.id}`)}
