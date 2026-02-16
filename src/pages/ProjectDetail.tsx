@@ -185,7 +185,7 @@ export default function ProjectDetail() {
                       <button onClick={(e) => { e.stopPropagation(); deleteSnippet(snip.id); }} className="rounded-md p-1.5 hover:bg-destructive/20 text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
                     </div>
                   </div>
-                  <pre className="mt-2 rounded-md bg-black/80 px-3 py-2 text-xs font-mono text-green-400 line-clamp-1 overflow-hidden">{snip.code}</pre>
+                  <pre className="mt-2 rounded-md bg-black/80 px-3 py-2 text-xs font-mono text-green-400 max-h-10 overflow-hidden whitespace-pre-wrap break-all">{snip.code}</pre>
                 </div>
               ))}
             </div>
