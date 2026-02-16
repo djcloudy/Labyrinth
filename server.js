@@ -12,6 +12,14 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 const DATA_DIR = path.resolve(process.env.LABYRINTH_DATA_DIR || './data');
 const VALID_COLLECTIONS = ['projects', 'documents', 'snippets', 'media', 'tasks'];
+const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
+
+function readSettings() {
+  try { return JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8')); } catch { return {}; }
+}
+function writeSettings(data) {
+  fs.writeFileSync(SETTINGS_FILE, JSON.stringify(data, null, 2), 'utf8');
+}
 
 // Ensure data directory exists and is writable
 try {
@@ -115,6 +123,74 @@ app.delete('/api/:collection/:id', validateCollection, (req, res) => {
   }
 
   res.json({ success: true });
+});
+
+// --- Settings API (for API keys) ---
+app.get('/api/settings', (req, res) => {
+  res.json(readSettings());
+});
+
+app.put('/api/settings', (req, res) => {
+  const current = readSettings();
+  const updated = { ...current, ...req.body };
+  writeSettings(updated);
+  res.json(updated);
+});
+
+// --- AI Chat Proxy ---
+const AI_PROVIDERS = {
+  openai: { url: 'https://api.openai.com/v1/chat/completions', envKey: 'OPENAI_API_KEY' },
+  gemini: { url: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', envKey: 'GEMINI_API_KEY' },
+  ollama: { url: null, envKey: null },
+};
+
+app.post('/api/ai/chat', async (req, res) => {
+  const { messages, provider = 'openai', model, apiKey: clientKey, ollamaUrl } = req.body;
+  if (!messages || !Array.isArray(messages)) return res.status(400).json({ error: 'messages required' });
+
+  const settings = readSettings();
+  let url, authKey;
+
+  if (provider === 'ollama') {
+    const base = ollamaUrl || settings.ollamaUrl || process.env.OLLAMA_URL || 'http://localhost:11434';
+    url = `${base}/v1/chat/completions`;
+    authKey = null;
+  } else {
+    const cfg = AI_PROVIDERS[provider];
+    if (!cfg) return res.status(400).json({ error: `Unknown provider: ${provider}` });
+    url = cfg.url;
+    authKey = clientKey || settings[`${provider}ApiKey`] || process.env[cfg.envKey];
+    if (!authKey) return res.status(400).json({ error: `No API key configured for ${provider}. Set it in Settings or via ${cfg.envKey} env var.` });
+  }
+
+  try {
+    const body = { model: model || (provider === 'openai' ? 'gpt-4o-mini' : provider === 'gemini' ? 'gemini-2.0-flash' : 'llama3'), messages, stream: true };
+    const headers = { 'Content-Type': 'application/json' };
+    if (authKey) headers['Authorization'] = `Bearer ${authKey}`;
+
+    const aiRes = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
+    if (!aiRes.ok) {
+      const errText = await aiRes.text();
+      return res.status(aiRes.status).json({ error: `AI provider error (${aiRes.status}): ${errText}` });
+    }
+
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+
+    const reader = aiRes.body.getReader();
+    const decoder = new TextDecoder();
+    const pump = async () => {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) { res.end(); break; }
+        res.write(decoder.decode(value, { stream: true }));
+      }
+    };
+    pump().catch(() => res.end());
+  } catch (err) {
+    res.status(500).json({ error: err.message || 'Failed to reach AI provider' });
+  }
 });
 
 // Serve static files from dist/ (production build)
