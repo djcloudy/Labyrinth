@@ -1,6 +1,8 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Plus, Pencil, Trash2, Copy, Check, Search } from 'lucide-react';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import AppLayout from '@/components/AppLayout';
 import { snippetStore, projectStore } from '@/lib/store';
 import { useStore } from '@/hooks/use-store';
@@ -137,9 +139,16 @@ export default function SnippetsPage() {
                 {viewSnippet && <span className={`rounded px-2 py-0.5 text-xs font-bold ${LANG_COLORS[viewSnippet.language]}`}>{viewSnippet.language}</span>}
               </div>
             </DialogHeader>
-            <pre className="overflow-x-auto whitespace-pre-wrap break-all rounded-lg border border-border bg-background p-4 text-sm font-mono text-success">
-              <code>{viewSnippet?.code}</code>
-            </pre>
+            {viewSnippet && (
+              <SyntaxHighlighter
+                language={viewSnippet.language.toLowerCase()}
+                style={oneDark}
+                customStyle={{ borderRadius: '0.5rem', fontSize: '0.875rem', margin: 0 }}
+                wrapLongLines
+              >
+                {viewSnippet.code}
+              </SyntaxHighlighter>
+            )}
             <div className="flex justify-end gap-2 pt-4 border-t border-border">
               <Button variant="outline" size="sm" onClick={() => viewSnippet && handleCopy(viewSnippet.id, viewSnippet.code)}>
                 {copiedId === viewSnippet?.id ? <Check className="h-3.5 w-3.5 mr-1.5 text-success" /> : <Copy className="h-3.5 w-3.5 mr-1.5" />}
