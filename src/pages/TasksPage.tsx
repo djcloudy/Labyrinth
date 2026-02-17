@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, Pencil, Trash2, CheckCircle2, Circle, Clock, Search } from 'lucide-react';
+import { Plus, Pencil, Trash2, CheckCircle2, Circle, Clock, Search, GripVertical } from 'lucide-react';
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import AppLayout from '@/components/AppLayout';
 import { taskStore, projectStore } from '@/lib/store';
 import { useStore } from '@/hooks/use-store';
@@ -11,7 +12,6 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 
 const STATUS_CONFIG: Record<TaskStatus, { label: string; icon: React.ElementType; className: string }> = {
@@ -72,6 +72,16 @@ export default function TasksPage() {
     refresh();
   };
 
+  const handleDragEnd = async (result: DropResult) => {
+    const { draggableId, destination } = result;
+    if (!destination) return;
+    const newStatus = destination.droppableId as TaskStatus;
+    const task = tasks.find(t => t.id === draggableId);
+    if (!task || task.status === newStatus) return;
+    await taskStore.update(task.id, { status: newStatus });
+    refresh();
+  };
+
   const filtered = tasks.filter(t => {
     if (filterProject !== 'all' && t.projectId !== filterProject) return false;
     const q = search.toLowerCase();
@@ -115,50 +125,80 @@ export default function TasksPage() {
         {loading ? (
           <div className="space-y-4">{[1, 2, 3].map(i => <Skeleton key={i} className="h-20 w-full rounded-xl" />)}</div>
         ) : (
-          <div className="grid gap-6 lg:grid-cols-3">
-            {(['TODO', 'IN_PROGRESS', 'DONE'] as TaskStatus[]).map(statusKey => {
-              const config = STATUS_CONFIG[statusKey];
-              const StatusIcon = config.icon;
-              return (
-                <div key={statusKey} className="flex flex-col rounded-xl border border-border bg-card/50 p-4" style={{ maxHeight: 'calc(100vh - 280px)' }}>
-                  <div className="mb-4 flex shrink-0 items-center gap-2">
-                    <StatusIcon className={cn('h-5 w-5', config.className)} />
-                    <h2 className="font-semibold text-foreground">{config.label}</h2>
-                    <span className="ml-auto rounded-full bg-secondary px-2 py-0.5 text-xs text-muted-foreground">{grouped[statusKey].length}</span>
-                  </div>
-                  <ScrollArea className="flex-1 min-h-0">
-                  <div className="space-y-2 pr-2">
-                    {grouped[statusKey].map(task => {
-                      const project = projects.find(p => p.id === task.projectId);
-                      return (
-                        <div ref={highlightId === task.id ? highlightRef : undefined} key={task.id} className={cn("group rounded-lg border border-border bg-card p-3 hover:border-primary/30 transition-colors", highlightId === task.id && "ring-2 ring-primary border-primary")}>
-                          <div className="flex items-start justify-between gap-2">
-                            <button onClick={() => handleStatusCycle(task)} className="mt-0.5 shrink-0" title="Cycle status">
-                              <StatusIcon className={cn('h-4 w-4', config.className)} />
-                            </button>
-                            <div className="min-w-0 flex-1">
-                              <p className={cn("text-sm font-medium text-foreground", task.status === 'DONE' && 'line-through text-muted-foreground')}>{task.title}</p>
-                              {task.description && <p className="mt-0.5 text-xs text-muted-foreground line-clamp-2">{task.description}</p>}
-                              <div className="mt-2 flex items-center gap-2">
-                                <span className={cn('rounded px-1.5 py-0.5 text-[10px] font-bold', PRIORITY_COLORS[task.priority])}>{task.priority}</span>
-                                {project && <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">{project.name}</span>}
-                              </div>
-                            </div>
-                            <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <button onClick={() => openEdit(task)} className="rounded p-1 hover:bg-secondary text-muted-foreground hover:text-foreground"><Pencil className="h-3 w-3" /></button>
-                              <button onClick={() => handleDelete(task.id)} className="rounded p-1 hover:bg-destructive/20 text-muted-foreground hover:text-destructive"><Trash2 className="h-3 w-3" /></button>
-                            </div>
-                          </div>
+          <DragDropContext onDragEnd={handleDragEnd}>
+            <div className="grid gap-6 lg:grid-cols-3">
+              {(['TODO', 'IN_PROGRESS', 'DONE'] as TaskStatus[]).map(statusKey => {
+                const config = STATUS_CONFIG[statusKey];
+                const StatusIcon = config.icon;
+                return (
+                  <div key={statusKey} className="flex flex-col rounded-xl border border-border bg-card/50 p-4" style={{ maxHeight: 'calc(100vh - 280px)' }}>
+                    <div className="mb-4 flex shrink-0 items-center gap-2">
+                      <StatusIcon className={cn('h-5 w-5', config.className)} />
+                      <h2 className="font-semibold text-foreground">{config.label}</h2>
+                      <span className="ml-auto rounded-full bg-secondary px-2 py-0.5 text-xs text-muted-foreground">{grouped[statusKey].length}</span>
+                    </div>
+                    <Droppable droppableId={statusKey}>
+                      {(provided, snapshot) => (
+                        <div
+                          ref={provided.innerRef}
+                          {...provided.droppableProps}
+                          className={cn(
+                            "flex-1 min-h-0 overflow-y-auto space-y-2 pr-1 rounded-lg transition-colors",
+                            snapshot.isDraggingOver && "bg-primary/5 ring-1 ring-primary/20"
+                          )}
+                        >
+                          {grouped[statusKey].map((task, index) => {
+                            const project = projects.find(p => p.id === task.projectId);
+                            return (
+                              <Draggable key={task.id} draggableId={task.id} index={index}>
+                                {(dragProvided, dragSnapshot) => (
+                                  <div
+                                    ref={(el) => {
+                                      dragProvided.innerRef(el);
+                                      if (highlightId === task.id && el) (highlightRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
+                                    }}
+                                    {...dragProvided.draggableProps}
+                                    className={cn(
+                                      "group rounded-lg border border-border bg-card p-3 hover:border-primary/30 transition-colors",
+                                      highlightId === task.id && "ring-2 ring-primary border-primary",
+                                      dragSnapshot.isDragging && "shadow-lg ring-2 ring-primary/40 rotate-1"
+                                    )}
+                                  >
+                                    <div className="flex items-start justify-between gap-2">
+                                      <div {...dragProvided.dragHandleProps} className="mt-0.5 shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors">
+                                        <GripVertical className="h-4 w-4" />
+                                      </div>
+                                      <button onClick={() => handleStatusCycle(task)} className="mt-0.5 shrink-0" title="Cycle status">
+                                        <StatusIcon className={cn('h-4 w-4', config.className)} />
+                                      </button>
+                                      <div className="min-w-0 flex-1">
+                                        <p className={cn("text-sm font-medium text-foreground", task.status === 'DONE' && 'line-through text-muted-foreground')}>{task.title}</p>
+                                        {task.description && <p className="mt-0.5 text-xs text-muted-foreground line-clamp-2">{task.description}</p>}
+                                        <div className="mt-2 flex items-center gap-2">
+                                          <span className={cn('rounded px-1.5 py-0.5 text-[10px] font-bold', PRIORITY_COLORS[task.priority])}>{task.priority}</span>
+                                          {project && <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">{project.name}</span>}
+                                        </div>
+                                      </div>
+                                      <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button onClick={() => openEdit(task)} className="rounded p-1 hover:bg-secondary text-muted-foreground hover:text-foreground"><Pencil className="h-3 w-3" /></button>
+                                        <button onClick={() => handleDelete(task.id)} className="rounded p-1 hover:bg-destructive/20 text-muted-foreground hover:text-destructive"><Trash2 className="h-3 w-3" /></button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                              </Draggable>
+                            );
+                          })}
+                          {provided.placeholder}
+                          {grouped[statusKey].length === 0 && <p className="py-4 text-center text-xs text-muted-foreground">No tasks</p>}
                         </div>
-                      );
-                    })}
-                    {grouped[statusKey].length === 0 && <p className="py-4 text-center text-xs text-muted-foreground">No tasks</p>}
+                      )}
+                    </Droppable>
                   </div>
-                  </ScrollArea>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          </DragDropContext>
         )}
 
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
