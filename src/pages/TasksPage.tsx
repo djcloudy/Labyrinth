@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 
 const STATUS_CONFIG: Record<TaskStatus, { label: string; icon: React.ElementType; className: string }> = {
@@ -125,7 +126,8 @@ export default function TasksPage() {
                     <h2 className="font-semibold text-foreground">{config.label}</h2>
                     <span className="ml-auto rounded-full bg-secondary px-2 py-0.5 text-xs text-muted-foreground">{grouped[statusKey].length}</span>
                   </div>
-                  <div className="space-y-2">
+                  <ScrollArea className="max-h-[calc(100vh-320px)]">
+                  <div className="space-y-2 pr-2">
                     {grouped[statusKey].map(task => {
                       const project = projects.find(p => p.id === task.projectId);
                       return (
@@ -152,6 +154,7 @@ export default function TasksPage() {
                     })}
                     {grouped[statusKey].length === 0 && <p className="py-4 text-center text-xs text-muted-foreground">No tasks</p>}
                   </div>
+                  </ScrollArea>
                 </div>
               );
             })}
