@@ -120,13 +120,13 @@ export default function TasksPage() {
               const config = STATUS_CONFIG[statusKey];
               const StatusIcon = config.icon;
               return (
-                <div key={statusKey} className="rounded-xl border border-border bg-card/50 p-4">
-                  <div className="mb-4 flex items-center gap-2">
+                <div key={statusKey} className="flex flex-col rounded-xl border border-border bg-card/50 p-4" style={{ maxHeight: 'calc(100vh - 280px)' }}>
+                  <div className="mb-4 flex shrink-0 items-center gap-2">
                     <StatusIcon className={cn('h-5 w-5', config.className)} />
                     <h2 className="font-semibold text-foreground">{config.label}</h2>
                     <span className="ml-auto rounded-full bg-secondary px-2 py-0.5 text-xs text-muted-foreground">{grouped[statusKey].length}</span>
                   </div>
-                  <ScrollArea className="max-h-[calc(100vh-320px)]">
+                  <ScrollArea className="flex-1 min-h-0">
                   <div className="space-y-2 pr-2">
                     {grouped[statusKey].map(task => {
                       const project = projects.find(p => p.id === task.projectId);
