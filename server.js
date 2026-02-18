@@ -9,7 +9,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3002;
 const DATA_DIR = path.resolve(process.env.LABYRINTH_DATA_DIR || './data');
 const VALID_COLLECTIONS = ['projects', 'documents', 'snippets', 'media', 'tasks'];
 const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
