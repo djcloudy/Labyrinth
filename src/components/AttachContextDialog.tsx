@@ -39,13 +39,13 @@ export default function AttachContextDialog({ open, onOpenChange, selected, onSe
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-card border-border sm:max-w-md">
+      <DialogContent className="bg-card border-border sm:max-w-md max-h-[80vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>Attach Context</DialogTitle>
           <DialogDescription>Select documents and snippets to include as context in your message.</DialogDescription>
         </DialogHeader>
-        <Tabs defaultValue="documents" className="w-full">
-          <TabsList className="w-full">
+        <Tabs defaultValue="documents" className="w-full flex-1 flex flex-col min-h-0">
+          <TabsList className="w-full shrink-0">
             <TabsTrigger value="documents" className="flex-1 gap-1.5">
               <FileText className="h-3.5 w-3.5" /> Documents
             </TabsTrigger>
@@ -53,8 +53,8 @@ export default function AttachContextDialog({ open, onOpenChange, selected, onSe
               <Code className="h-3.5 w-3.5" /> Snippets
             </TabsTrigger>
           </TabsList>
-          <TabsContent value="documents">
-            <ScrollArea className="h-60">
+          <TabsContent value="documents" className="flex-1 min-h-0">
+            <ScrollArea className="h-52">
               {documents.length === 0 ? (
                 <p className="py-8 text-center text-sm text-muted-foreground">No documents yet.</p>
               ) : (
@@ -80,8 +80,8 @@ export default function AttachContextDialog({ open, onOpenChange, selected, onSe
               )}
             </ScrollArea>
           </TabsContent>
-          <TabsContent value="snippets">
-            <ScrollArea className="h-60">
+          <TabsContent value="snippets" className="flex-1 min-h-0">
+            <ScrollArea className="h-52">
               {snippets.length === 0 ? (
                 <p className="py-8 text-center text-sm text-muted-foreground">No snippets yet.</p>
               ) : (
@@ -106,7 +106,7 @@ export default function AttachContextDialog({ open, onOpenChange, selected, onSe
             </ScrollArea>
           </TabsContent>
         </Tabs>
-        <div className="flex justify-between items-center pt-2">
+        <div className="flex justify-between items-center pt-2 shrink-0">
           <span className="text-xs text-muted-foreground">{selected.length} selected</span>
           <Button size="sm" onClick={() => onOpenChange(false)}>Done</Button>
         </div>
