@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Bot, Send, Settings2, Trash2, Loader2, AlertCircle, RefreshCw, Paperclip, X, Database } from 'lucide-react';
+import { Bot, Send, Settings2, Trash2, Loader2, AlertCircle, RefreshCw, Paperclip, X, Database, Shield } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import AppLayout from '@/components/AppLayout';
 import { Button } from '@/components/ui/button';
@@ -71,6 +71,17 @@ export default function AIHubPage() {
   const [attachDialogOpen, setAttachDialogOpen] = useState(false);
   const [knowledgeBase, setKnowledgeBase] = useState(false);
 
+  // Context sharing security
+  const getContextAllowed = useCallback(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('labyrinth_context_sharing') || 'null');
+      const defaults = { openai: false, gemini: false, ollama: true };
+      const settings = stored ? { ...defaults, ...stored } : defaults;
+      return settings[provider] ?? false;
+    } catch { return false; }
+  }, [provider]);
+  const contextAllowed = getContextAllowed();
+
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages]);
@@ -89,6 +100,11 @@ export default function AIHubPage() {
 
   const buildContextMessages = useCallback(async (userText: string): Promise<Message[]> => {
     const contextMessages: Message[] = [];
+
+    // Skip all context injection if provider is not allowed
+    if (!contextAllowed) {
+      return [{ role: 'user' as const, content: userText }];
+    }
 
     // Knowledge base system message
     if (knowledgeBase) {
@@ -139,7 +155,7 @@ export default function AIHubPage() {
     }
 
     return [...contextMessages, { role: 'user' as const, content: userText }];
-  }, [attachments, knowledgeBase]);
+  }, [attachments, knowledgeBase, contextAllowed]);
 
   const sendMessage = useCallback(async () => {
     const text = input.trim();
@@ -356,7 +372,7 @@ export default function AIHubPage() {
         )}
 
         {/* Attachment chips */}
-        {attachments.length > 0 && (
+        {contextAllowed && attachments.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-1.5">
             {attachments.map(att => (
               <Badge key={`${att.type}-${att.id}`} variant="secondary" className="gap-1 pl-2 pr-1 py-1">
@@ -376,15 +392,17 @@ export default function AIHubPage() {
 
         {/* Input */}
         <div className="mt-3 flex gap-2">
-          <Button
-            variant="outline"
-            size="icon"
-            className="shrink-0 h-[44px] w-[44px]"
-            onClick={() => setAttachDialogOpen(true)}
-            title="Attach documents or snippets"
-          >
-            <Paperclip className="h-4 w-4" />
-          </Button>
+          {contextAllowed && (
+            <Button
+              variant="outline"
+              size="icon"
+              className="shrink-0 h-[44px] w-[44px]"
+              onClick={() => setAttachDialogOpen(true)}
+              title="Attach documents or snippets"
+            >
+              <Paperclip className="h-4 w-4" />
+            </Button>
+          )}
           <Textarea
             ref={inputRef}
             value={input}
@@ -401,17 +419,24 @@ export default function AIHubPage() {
         </div>
 
         {/* Knowledge base toggle */}
-        <div className="mt-2 flex items-center gap-2">
-          <Switch
-            id="knowledge-base"
-            checked={knowledgeBase}
-            onCheckedChange={setKnowledgeBase}
-          />
-          <label htmlFor="knowledge-base" className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
-            <Database className="h-3.5 w-3.5" />
-            Include project knowledge base
-          </label>
-        </div>
+        {contextAllowed ? (
+          <div className="mt-2 flex items-center gap-2">
+            <Switch
+              id="knowledge-base"
+              checked={knowledgeBase}
+              onCheckedChange={setKnowledgeBase}
+            />
+            <label htmlFor="knowledge-base" className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
+              <Database className="h-3.5 w-3.5" />
+              Include project knowledge base
+            </label>
+          </div>
+        ) : (
+          <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+            <Shield className="h-3.5 w-3.5" />
+            Context sharing is disabled for this provider. Enable it in <a href="/settings" className="underline text-primary hover:text-primary/80">Settings</a>.
+          </div>
+        )}
 
         {/* Attach Context Dialog */}
         <AttachContextDialog

@@ -1,12 +1,38 @@
-import { Settings, HardDrive, Database } from 'lucide-react';
+import { Settings, HardDrive, Database, Shield } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import AppLayout from '@/components/AppLayout';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
 import { checkApiHealth, getHealthData, isApiAvailable } from '@/lib/api';
+
+type Provider = 'openai' | 'gemini' | 'ollama';
+
+interface ContextSharingSettings {
+  openai: boolean;
+  gemini: boolean;
+  ollama: boolean;
+}
+
+const CONTEXT_SHARING_KEY = 'labyrinth_context_sharing';
+const DEFAULT_CONTEXT_SHARING: ContextSharingSettings = { openai: false, gemini: false, ollama: true };
+
+function loadContextSharing(): ContextSharingSettings {
+  try {
+    const stored = JSON.parse(localStorage.getItem(CONTEXT_SHARING_KEY) || 'null');
+    return stored ? { ...DEFAULT_CONTEXT_SHARING, ...stored } : DEFAULT_CONTEXT_SHARING;
+  } catch { return DEFAULT_CONTEXT_SHARING; }
+}
 
 export default function SettingsPage() {
   const [storageMode, setStorageMode] = useState<'checking' | 'disk' | 'local'>('checking');
   const [dataDir, setDataDir] = useState<string>('');
+  const [contextSharing, setContextSharing] = useState<ContextSharingSettings>(loadContextSharing);
+
+  const toggleContextSharing = (provider: Provider) => {
+    const next = { ...contextSharing, [provider]: !contextSharing[provider] };
+    setContextSharing(next);
+    localStorage.setItem(CONTEXT_SHARING_KEY, JSON.stringify(next));
+  };
 
   useEffect(() => {
     checkApiHealth().then(({ available, health }) => {
@@ -121,6 +147,35 @@ export default function SettingsPage() {
                 To enable persistent disk storage, run the Express server with: <code className="rounded bg-secondary px-1.5 py-0.5 text-foreground">LABYRINTH_DATA_DIR=/path/to/data node server.js</code>
               </p>
             )}
+          </div>
+
+          {/* AI Context Sharing */}
+          <div className="rounded-xl border border-border bg-card p-6">
+            <h2 className="mb-1 text-lg font-semibold text-foreground flex items-center gap-2">
+              <Shield className="h-5 w-5 text-warning" />
+              AI Context Sharing
+            </h2>
+            <p className="mb-4 text-sm text-muted-foreground">
+              Control which AI providers can access your documents, snippets, and project data.
+            </p>
+            <div className="space-y-3">
+              {([
+                { key: 'openai' as Provider, label: 'OpenAI', note: 'Sends data externally' },
+                { key: 'gemini' as Provider, label: 'Gemini', note: 'Sends data externally' },
+                { key: 'ollama' as Provider, label: 'Ollama (Local)', note: 'Data stays on your machine' },
+              ]).map(({ key, label, note }) => (
+                <div key={key} className="flex items-center justify-between">
+                  <div>
+                    <span className="text-sm font-medium text-foreground">{label}</span>
+                    <span className="ml-2 text-xs text-muted-foreground">{note}</span>
+                  </div>
+                  <Switch
+                    checked={contextSharing[key]}
+                    onCheckedChange={() => toggleContextSharing(key)}
+                  />
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Data Management */}
