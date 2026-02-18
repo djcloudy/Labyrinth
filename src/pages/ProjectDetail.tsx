@@ -8,6 +8,7 @@ import AppLayout from '@/components/AppLayout';
 import { projectStore, documentStore, snippetStore, taskStore } from '@/lib/store';
 import { Project, Document, Snippet, SnippetLanguage, Task, TaskStatus, TaskPriority } from '@/lib/types';
 import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -104,6 +105,21 @@ export default function ProjectDetail() {
             <button onClick={handleDeleteProject} className="rounded-lg border border-border p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"><Trash2 className="h-4 w-4" /></button>
           </div>
         </div>
+
+        {/* Task Progress Bar */}
+        {!loadingTasks && tasks.length > 0 && (() => {
+          const doneCount = tasks.filter(t => t.status === 'DONE').length;
+          const percent = Math.round((doneCount / tasks.length) * 100);
+          return (
+            <div className="mb-6 rounded-xl border border-border bg-card p-4">
+              <div className="mb-2 flex items-center justify-between text-sm">
+                <span className="font-medium text-foreground">Task Progress</span>
+                <span className="text-muted-foreground">{doneCount}/{tasks.length} completed ({percent}%)</span>
+              </div>
+              <Progress value={percent} className="h-2" />
+            </div>
+          );
+        })()}
 
         <hr className="my-6 border-border" />
 
