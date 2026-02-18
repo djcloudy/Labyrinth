@@ -137,6 +137,20 @@ app.put('/api/settings', (req, res) => {
   res.json(updated);
 });
 
+// --- AI Context Endpoint ---
+app.get('/api/ai/context', (req, res) => {
+  const projects = readCollection('projects');
+  const documents = readCollection('documents');
+  const snippets = readCollection('snippets');
+  const media = readCollection('media');
+  res.json({
+    projects: projects.map(p => ({ id: p.id, name: p.name, description: p.description })),
+    documents: documents.map(d => ({ id: d.id, title: d.title, content: d.content, projectId: d.projectId })),
+    snippets: snippets.map(s => ({ id: s.id, title: s.title, language: s.language, code: s.code, projectId: s.projectId })),
+    media: media.map(m => ({ id: m.id, title: m.title, type: m.type, projectId: m.projectId })),
+  });
+});
+
 // --- AI Chat Proxy ---
 const AI_PROVIDERS = {
   openai: { url: 'https://api.openai.com/v1/chat/completions', envKey: 'OPENAI_API_KEY' },

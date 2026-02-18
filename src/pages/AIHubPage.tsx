@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Bot, Send, Settings2, Trash2, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
+import { Bot, Send, Settings2, Trash2, Loader2, AlertCircle, RefreshCw, Paperclip, X, Database } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import AppLayout from '@/components/AppLayout';
 import { Button } from '@/components/ui/button';
@@ -7,8 +7,14 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import { useAIModels } from '@/hooks/use-ai-models';
+import { documentStore, snippetStore, projectStore, mediaStore } from '@/lib/store';
+import { useStore } from '@/hooks/use-store';
+import AttachContextDialog, { type Attachment } from '@/components/AttachContextDialog';
+import type { Document, Snippet } from '@/lib/types';
 
 type Provider = 'openai' | 'gemini' | 'ollama';
 type Message = { role: 'user' | 'assistant' | 'system'; content: string };
@@ -28,7 +34,7 @@ const PROVIDER_LABELS: Record<Provider, string> = {
 const PROVIDER_URLS: Record<Provider, string> = {
   openai: 'https://api.openai.com/v1/chat/completions',
   gemini: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
-  ollama: '', // set dynamically
+  ollama: '',
 };
 
 interface AISettings {
@@ -60,6 +66,11 @@ export default function AIHubPage() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
+  // Context attachment state
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [attachDialogOpen, setAttachDialogOpen] = useState(false);
+  const [knowledgeBase, setKnowledgeBase] = useState(false);
+
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages]);
@@ -72,16 +83,77 @@ export default function AIHubPage() {
     persistSettings(next);
   };
 
+  const removeAttachment = (type: Attachment['type'], id: string) => {
+    setAttachments(prev => prev.filter(a => !(a.type === type && a.id === id)));
+  };
+
+  const buildContextMessages = useCallback(async (userText: string): Promise<Message[]> => {
+    const contextMessages: Message[] = [];
+
+    // Knowledge base system message
+    if (knowledgeBase) {
+      const [projects, docs, snippets, media] = await Promise.all([
+        projectStore.getAll(),
+        documentStore.getAll(),
+        snippetStore.getAll(),
+        mediaStore.getAll(),
+      ]);
+      const summary = [
+        '## Your Project Knowledge Base',
+        '',
+        '### Projects',
+        ...projects.map(p => `- **${p.name}**: ${p.description || 'No description'}`),
+        '',
+        '### Documents',
+        ...docs.map(d => `- ${d.title}`),
+        '',
+        '### Snippets',
+        ...snippets.map(s => `- ${s.title} (${s.language})`),
+        '',
+        '### Media',
+        ...media.map(m => `- ${m.title} (${m.type})`),
+      ].join('\n');
+
+      contextMessages.push({
+        role: 'system',
+        content: `You have access to the user's project knowledge base. Use this information to answer their questions.\n\n${summary}`,
+      });
+    }
+
+    // Attached content injection
+    if (attachments.length > 0) {
+      const parts: string[] = ['[Attached Context]'];
+
+      for (const att of attachments) {
+        if (att.type === 'document') {
+          const doc = await documentStore.getById(att.id);
+          if (doc) parts.push(`--- Document: "${doc.title}" ---\n${doc.content}`);
+        } else {
+          const snip = await snippetStore.getById(att.id);
+          if (snip) parts.push(`--- Snippet: "${snip.title}" (${snip.language}) ---\n${snip.code}`);
+        }
+      }
+
+      parts.push('[End Context]');
+      return [...contextMessages, { role: 'user' as const, content: `${parts.join('\n\n')}\n\nUser question: ${userText}` }];
+    }
+
+    return [...contextMessages, { role: 'user' as const, content: userText }];
+  }, [attachments, knowledgeBase]);
+
   const sendMessage = useCallback(async () => {
     const text = input.trim();
     if (!text || isStreaming) return;
 
     setError(null);
     const userMsg: Message = { role: 'user', content: text };
-    const allMessages = [...messages, userMsg];
-    setMessages(allMessages);
+    setMessages(prev => [...prev, userMsg]);
     setInput('');
     setIsStreaming(true);
+
+    // Clear attachments after sending
+    const currentAttachments = [...attachments];
+    setAttachments([]);
 
     let assistantContent = '';
 
@@ -103,6 +175,10 @@ export default function AIHubPage() {
         url = PROVIDER_URLS.openai;
         headers['Authorization'] = `Bearer ${key}`;
       }
+
+      // Build context-enriched messages
+      const contextNewMessages = await buildContextMessages(text);
+      const allMessages = [...messages, ...contextNewMessages];
 
       const res = await fetch(url, {
         method: 'POST',
@@ -161,7 +237,7 @@ export default function AIHubPage() {
       setIsStreaming(false);
       inputRef.current?.focus();
     }
-  }, [input, messages, provider, model, settings, isStreaming]);
+  }, [input, messages, provider, model, settings, isStreaming, attachments, knowledgeBase, buildContextMessages]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
@@ -279,8 +355,36 @@ export default function AIHubPage() {
           </div>
         )}
 
+        {/* Attachment chips */}
+        {attachments.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {attachments.map(att => (
+              <Badge key={`${att.type}-${att.id}`} variant="secondary" className="gap-1 pl-2 pr-1 py-1">
+                <span className="text-xs">
+                  {att.type === 'document' ? '📄' : '💻'} {att.title}
+                </span>
+                <button
+                  onClick={() => removeAttachment(att.type, att.id)}
+                  className="ml-0.5 rounded-full p-0.5 hover:bg-accent"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            ))}
+          </div>
+        )}
+
         {/* Input */}
         <div className="mt-3 flex gap-2">
+          <Button
+            variant="outline"
+            size="icon"
+            className="shrink-0 h-[44px] w-[44px]"
+            onClick={() => setAttachDialogOpen(true)}
+            title="Attach documents or snippets"
+          >
+            <Paperclip className="h-4 w-4" />
+          </Button>
           <Textarea
             ref={inputRef}
             value={input}
@@ -295,6 +399,27 @@ export default function AIHubPage() {
             {isStreaming ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           </Button>
         </div>
+
+        {/* Knowledge base toggle */}
+        <div className="mt-2 flex items-center gap-2">
+          <Switch
+            id="knowledge-base"
+            checked={knowledgeBase}
+            onCheckedChange={setKnowledgeBase}
+          />
+          <label htmlFor="knowledge-base" className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
+            <Database className="h-3.5 w-3.5" />
+            Include project knowledge base
+          </label>
+        </div>
+
+        {/* Attach Context Dialog */}
+        <AttachContextDialog
+          open={attachDialogOpen}
+          onOpenChange={setAttachDialogOpen}
+          selected={attachments}
+          onSelectionChange={setAttachments}
+        />
 
         {/* Settings Dialog */}
         <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
