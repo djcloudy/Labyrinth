@@ -2,9 +2,10 @@ import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Trash2, Pencil, Search } from 'lucide-react';
 import AppLayout from '@/components/AppLayout';
-import { projectStore } from '@/lib/store';
+import { projectStore, taskStore } from '@/lib/store';
 import { useStore } from '@/hooks/use-store';
 import { Project } from '@/lib/types';
+import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,6 +17,7 @@ const PROJECT_COLORS = ['#7c5cfc', '#22d3ee', '#22c55e', '#f59e0b', '#ef4444', '
 export default function ProjectsPage() {
   const navigate = useNavigate();
   const { data: projects, loading, refresh } = useStore(useCallback(() => projectStore.getAll(), []));
+  const { data: tasks } = useStore(useCallback(() => taskStore.getAll(), []));
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Project | null>(null);
   const [name, setName] = useState('');
@@ -93,6 +95,21 @@ export default function ProjectsPage() {
                   </div>
                 </div>
                 <p className="line-clamp-2 text-sm text-muted-foreground">{project.description || 'No description'}</p>
+                {(() => {
+                  const projectTasks = tasks.filter(t => t.projectId === project.id);
+                  if (projectTasks.length === 0) return null;
+                  const doneCount = projectTasks.filter(t => t.status === 'DONE').length;
+                  const percent = Math.round((doneCount / projectTasks.length) * 100);
+                  return (
+                    <div className="mt-3">
+                      <div className="mb-1 flex items-center justify-between text-xs text-muted-foreground">
+                        <span>{doneCount}/{projectTasks.length} tasks</span>
+                        <span>{percent}%</span>
+                      </div>
+                      <Progress value={percent} className="h-1.5" />
+                    </div>
+                  );
+                })()}
               </div>
             ))}
           </div>
