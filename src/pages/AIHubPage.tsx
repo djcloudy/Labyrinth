@@ -269,6 +269,10 @@ export default function AIHubPage() {
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <h1 className="text-3xl font-bold text-foreground">AI Hub</h1>
+            <Badge variant={contextAllowed ? "default" : "secondary"} className={cn("gap-1 text-[10px] py-0.5", contextAllowed ? "bg-success/20 text-success border-success/30" : "bg-muted text-muted-foreground border-border")}>
+              <Shield className="h-3 w-3" />
+              {contextAllowed ? 'Context sharing on' : 'Context sharing off'}
+            </Badge>
             <div className="flex items-center gap-2">
               <Select value={provider} onValueChange={(v) => setProvider(v as Provider)}>
                 <SelectTrigger className="w-40 bg-secondary border-border h-8 text-xs">
