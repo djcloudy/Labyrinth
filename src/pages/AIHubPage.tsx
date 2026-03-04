@@ -174,32 +174,22 @@ export default function AIHubPage() {
     let assistantContent = '';
 
     try {
-      let url: string;
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-
-      if (provider === 'ollama') {
-        const base = settings.ollamaUrl || 'http://localhost:11434';
-        url = `${base}/v1/chat/completions`;
-      } else if (provider === 'gemini') {
-        const key = settings.geminiApiKey;
-        if (!key) throw new Error('No Gemini API key configured. Click "API Keys" to set one.');
-        url = `${PROVIDER_URLS.gemini}`;
-        headers['Authorization'] = `Bearer ${key}`;
-      } else {
-        const key = settings.openaiApiKey;
-        if (!key) throw new Error('No OpenAI API key configured. Click "API Keys" to set one.');
-        url = PROVIDER_URLS.openai;
-        headers['Authorization'] = `Bearer ${key}`;
-      }
+      const API_BASE = import.meta.env.VITE_API_BASE || '';
 
       // Build context-enriched messages
       const contextNewMessages = await buildContextMessages(text);
       const allMessages = [...messages, ...contextNewMessages];
 
-      const res = await fetch(url, {
+      const res = await fetch(`${API_BASE}/api/ai/chat`, {
         method: 'POST',
-        headers,
-        body: JSON.stringify({ model, messages: allMessages, stream: true }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          provider,
+          model,
+          messages: allMessages,
+          apiKey: provider === 'openai' ? settings.openaiApiKey : provider === 'gemini' ? settings.geminiApiKey : undefined,
+          ollamaUrl: settings.ollamaUrl,
+        }),
       });
 
       if (!res.ok) {
