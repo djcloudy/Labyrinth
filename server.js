@@ -151,6 +151,52 @@ app.get('/api/ai/context', (req, res) => {
   });
 });
 
+// --- AI Models Proxy ---
+app.get('/api/ai/models/:provider', async (req, res) => {
+  const { provider } = req.params;
+  const settings = readSettings();
+
+  try {
+    if (provider === 'ollama') {
+      const base = req.query.url || settings.ollamaUrl || process.env.OLLAMA_URL || 'http://localhost:11434';
+      const apiRes = await fetch(`${base}/api/tags`, { signal: AbortSignal.timeout(5000) });
+      if (!apiRes.ok) throw new Error(`Ollama returned ${apiRes.status}`);
+      const data = await apiRes.json();
+      const names = (data.models || []).map(m => m.name);
+      return res.json({ models: names });
+    }
+
+    if (provider === 'openai') {
+      const key = req.query.key || settings.openaiApiKey || process.env.OPENAI_API_KEY;
+      if (!key) return res.json({ models: [] });
+      const apiRes = await fetch('https://api.openai.com/v1/models', {
+        headers: { Authorization: `Bearer ${key}` },
+        signal: AbortSignal.timeout(5000),
+      });
+      if (!apiRes.ok) throw new Error(`OpenAI returned ${apiRes.status}`);
+      const data = await apiRes.json();
+      const models = (data.data || []).map(m => m.id).filter(id => /^gpt-/.test(id)).sort();
+      return res.json({ models });
+    }
+
+    if (provider === 'gemini') {
+      const key = req.query.key || settings.geminiApiKey || process.env.GEMINI_API_KEY;
+      if (!key) return res.json({ models: [] });
+      const apiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}`, {
+        signal: AbortSignal.timeout(5000),
+      });
+      if (!apiRes.ok) throw new Error(`Gemini returned ${apiRes.status}`);
+      const data = await apiRes.json();
+      const models = (data.models || []).map(m => m.name.replace('models/', '')).filter(id => id.startsWith('gemini-')).sort();
+      return res.json({ models });
+    }
+
+    res.status(400).json({ error: `Unknown provider: ${provider}` });
+  } catch (err) {
+    res.status(502).json({ error: err.message || 'Failed to fetch models' });
+  }
+});
+
 // --- AI Chat Proxy ---
 const AI_PROVIDERS = {
   openai: { url: 'https://api.openai.com/v1/chat/completions', envKey: 'OPENAI_API_KEY' },
