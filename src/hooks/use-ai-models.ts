@@ -23,42 +23,22 @@ export function useAIModels(provider: Provider, settings: AISettings) {
     setError(null);
     setLoading(true);
     try {
-      if (provider === 'ollama') {
-        const base = settings.ollamaUrl || 'http://localhost:11434';
-        const res = await fetch(`${base}/api/tags`, { signal: AbortSignal.timeout(3000) });
-        if (!res.ok) throw new Error('Failed to reach Ollama');
-        const data = await res.json();
-        const names: string[] = (data.models || []).map((m: any) => m.name);
-        setModels(names.length ? names : FALLBACK_MODELS.ollama);
-      } else if (provider === 'openai') {
-        const key = settings.openaiApiKey;
-        if (!key) { setModels(FALLBACK_MODELS.openai); return; }
-        const res = await fetch('https://api.openai.com/v1/models', {
-          headers: { Authorization: `Bearer ${key}` },
-          signal: AbortSignal.timeout(5000),
-        });
-        if (!res.ok) throw new Error('Failed to fetch OpenAI models');
-        const data = await res.json();
-        const chatModels: string[] = (data.data || [])
-          .map((m: any) => m.id as string)
-          .filter((id: string) => /^gpt-/.test(id))
-          .sort();
-        setModels(chatModels.length ? chatModels : FALLBACK_MODELS.openai);
-      } else if (provider === 'gemini') {
-        const key = settings.geminiApiKey;
-        if (!key) { setModels(FALLBACK_MODELS.gemini); return; }
-        const res = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models?key=${key}`,
-          { signal: AbortSignal.timeout(5000) }
-        );
-        if (!res.ok) throw new Error('Failed to fetch Gemini models');
-        const data = await res.json();
-        const names: string[] = (data.models || [])
-          .map((m: any) => (m.name as string).replace('models/', ''))
-          .filter((id: string) => id.startsWith('gemini-'))
-          .sort();
-        setModels(names.length ? names : FALLBACK_MODELS.gemini);
+      const params = new URLSearchParams();
+      if (provider === 'ollama' && settings.ollamaUrl) params.set('url', settings.ollamaUrl);
+      if (provider === 'openai' && settings.openaiApiKey) params.set('key', settings.openaiApiKey);
+      if (provider === 'gemini' && settings.geminiApiKey) params.set('key', settings.geminiApiKey);
+
+      const API_BASE = import.meta.env.VITE_API_BASE || '';
+      const res = await fetch(`${API_BASE}/api/ai/models/${provider}?${params}`, {
+        signal: AbortSignal.timeout(8000),
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+        throw new Error(errData.error || `Failed to fetch models`);
       }
+      const data = await res.json();
+      const names: string[] = data.models || [];
+      setModels(names.length ? names : FALLBACK_MODELS[provider]);
     } catch (err: any) {
       setError(err.message);
       setModels(FALLBACK_MODELS[provider]);
