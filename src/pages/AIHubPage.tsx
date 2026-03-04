@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Bot, Send, Settings2, Trash2, Loader2, AlertCircle, RefreshCw, Paperclip, X, Database, Shield } from 'lucide-react';
+import { Bot, Send, Settings2, Trash2, Loader2, AlertCircle, RefreshCw, Paperclip, X, Database, Shield, Wifi, WifiOff } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import AppLayout from '@/components/AppLayout';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import { useAIModels } from '@/hooks/use-ai-models';
+import { useOllamaStatus } from '@/hooks/use-ollama-status';
 import { documentStore, snippetStore, projectStore, mediaStore } from '@/lib/store';
 import { useStore } from '@/hooks/use-store';
 import AttachContextDialog, { type Attachment } from '@/components/AttachContextDialog';
@@ -63,6 +64,7 @@ export default function AIHubPage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settings, setSettings] = useState<AISettings>(loadSettings);
   const { models: availableModels, loading: modelsLoading, refetch: refetchModels } = useAIModels(provider, settings);
+  const { status: ollamaStatus, recheck: recheckOllama } = useOllamaStatus(provider, settings.ollamaUrl);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -259,6 +261,24 @@ export default function AIHubPage() {
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <h1 className="text-3xl font-bold text-foreground">AI Hub</h1>
+            {provider === 'ollama' && (
+              <Badge
+                variant="secondary"
+                className={cn(
+                  "gap-1 text-[10px] py-0.5 cursor-pointer",
+                  ollamaStatus === 'online' && "bg-success/20 text-success border-success/30",
+                  ollamaStatus === 'offline' && "bg-destructive/20 text-destructive border-destructive/30",
+                  ollamaStatus === 'checking' && "bg-muted text-muted-foreground border-border"
+                )}
+                onClick={recheckOllama}
+                title="Click to recheck connection"
+              >
+                {ollamaStatus === 'online' && <Wifi className="h-3 w-3" />}
+                {ollamaStatus === 'offline' && <WifiOff className="h-3 w-3" />}
+                {ollamaStatus === 'checking' && <Loader2 className="h-3 w-3 animate-spin" />}
+                {ollamaStatus === 'online' ? 'Connected' : ollamaStatus === 'offline' ? 'Unreachable' : 'Checking...'}
+              </Badge>
+            )}
             <Badge variant={contextAllowed ? "default" : "secondary"} className={cn("gap-1 text-[10px] py-0.5", contextAllowed ? "bg-success/20 text-success border-success/30" : "bg-muted text-muted-foreground border-border")}>
               <Shield className="h-3 w-3" />
               {contextAllowed ? 'Context sharing on' : 'Context sharing off'}
