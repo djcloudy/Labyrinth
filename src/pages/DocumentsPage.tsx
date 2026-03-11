@@ -122,7 +122,7 @@ export default function DocumentsPage() {
                         prose-hr:border-border
                       ">
                         {doc.content ? (
-                          <ReactMarkdown>{doc.content}</ReactMarkdown>
+                          <ReactMarkdown remarkPlugins={[remarkBreaks]}>{doc.content}</ReactMarkdown>
                         ) : (
                           <p className="italic text-muted-foreground">Empty document</p>
                         )}
