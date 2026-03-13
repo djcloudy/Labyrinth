@@ -230,7 +230,7 @@ export default function ProjectDetail() {
               prose-hr:border-border
             ">
               {viewDoc?.content ? (
-                <ReactMarkdown>{viewDoc.content}</ReactMarkdown>
+                <ReactMarkdown remarkPlugins={[remarkBreaks]}>{viewDoc.content}</ReactMarkdown>
               ) : (
                 <span className="text-muted-foreground italic">Empty document</span>
               )}
