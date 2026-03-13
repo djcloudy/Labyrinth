@@ -1,6 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Pencil, Trash2, FileText, Code2, ListTodo, Circle, Clock, CheckCircle2, Copy, Check, ChevronDown, ChevronRight } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import remarkBreaks from 'remark-breaks';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { useState, useEffect, useCallback } from 'react';
@@ -229,7 +230,7 @@ export default function ProjectDetail() {
               prose-hr:border-border
             ">
               {viewDoc?.content ? (
-                <ReactMarkdown>{viewDoc.content}</ReactMarkdown>
+                <ReactMarkdown remarkPlugins={[remarkBreaks]}>{viewDoc.content}</ReactMarkdown>
               ) : (
                 <span className="text-muted-foreground italic">Empty document</span>
               )}
