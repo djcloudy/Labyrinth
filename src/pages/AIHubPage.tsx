@@ -176,7 +176,7 @@ export default function AIHubPage() {
     let assistantContent = '';
 
     try {
-      const API_BASE = import.meta.env.VITE_API_BASE || '';
+      const API_BASE = import.meta.env.VITE_API_URL || '';
 
       // Build context-enriched messages
       const contextNewMessages = await buildContextMessages(text);

@@ -28,7 +28,7 @@ export function useAIModels(provider: Provider, settings: AISettings) {
       if (provider === 'openai' && settings.openaiApiKey) params.set('key', settings.openaiApiKey);
       if (provider === 'gemini' && settings.geminiApiKey) params.set('key', settings.geminiApiKey);
 
-      const API_BASE = import.meta.env.VITE_API_BASE || '';
+      const API_BASE = import.meta.env.VITE_API_URL || '';
       const res = await fetch(`${API_BASE}/api/ai/models/${provider}?${params}`, {
         signal: AbortSignal.timeout(8000),
       });
