@@ -23,14 +23,24 @@ function writeSettings(data) {
 
 function normalizeOllamaBaseUrl(url) {
   const raw = Array.isArray(url) ? url[0] : url;
-  const value = typeof raw === 'string' && raw.trim() ? raw.trim() : 'http://localhost:11434';
+  const fallback = 'http://localhost:11434';
+  const value = typeof raw === 'string' && raw.trim() ? raw.trim() : fallback;
+  const withProtocol = /^[a-z]+:\/\//i.test(value) ? value : `http://${value.replace(/^\/+/, '')}`;
 
-  return value
-    .replace(/\/+$/, '')
-    .replace(/\/api\/tags$/i, '')
-    .replace(/\/v1\/chat\/completions$/i, '')
-    .replace(/\/api$/i, '')
-    .replace(/\/v1$/i, '');
+  try {
+    const parsed = new URL(withProtocol);
+    parsed.pathname = parsed.pathname
+      .replace(/\/+$/, '')
+      .replace(/\/api\/tags$/i, '')
+      .replace(/\/v1\/chat\/completions$/i, '')
+      .replace(/\/api$/i, '')
+      .replace(/\/v1$/i, '');
+    parsed.search = '';
+    parsed.hash = '';
+    return parsed.toString().replace(/\/+$/, '');
+  } catch {
+    return fallback;
+  }
 }
 
 function getOllamaTagsUrl(url) {
