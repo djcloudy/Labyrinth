@@ -21,6 +21,26 @@ function writeSettings(data) {
   fs.writeFileSync(SETTINGS_FILE, JSON.stringify(data, null, 2), 'utf8');
 }
 
+function normalizeOllamaBaseUrl(url) {
+  const raw = Array.isArray(url) ? url[0] : url;
+  const value = typeof raw === 'string' && raw.trim() ? raw.trim() : 'http://localhost:11434';
+
+  return value
+    .replace(/\/+$/, '')
+    .replace(/\/api\/tags$/i, '')
+    .replace(/\/v1\/chat\/completions$/i, '')
+    .replace(/\/api$/i, '')
+    .replace(/\/v1$/i, '');
+}
+
+function getOllamaTagsUrl(url) {
+  return `${normalizeOllamaBaseUrl(url)}/api/tags`;
+}
+
+function getOllamaChatUrl(url) {
+  return `${normalizeOllamaBaseUrl(url)}/v1/chat/completions`;
+}
+
 // Ensure data directory exists and is writable
 try {
   fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -158,11 +178,13 @@ app.get('/api/ai/models/:provider', async (req, res) => {
 
   try {
     if (provider === 'ollama') {
-      const base = req.query.url || settings.ollamaUrl || process.env.OLLAMA_URL || 'http://localhost:11434';
-      const apiRes = await fetch(`${base}/api/tags`, { signal: AbortSignal.timeout(5000) });
+      const base = req.query.url || settings.ollamaUrl || process.env.OLLAMA_URL;
+      const apiRes = await fetch(getOllamaTagsUrl(base), { signal: AbortSignal.timeout(5000) });
       if (!apiRes.ok) throw new Error(`Ollama returned ${apiRes.status}`);
       const data = await apiRes.json();
-      const names = (data.models || []).map(m => m.name);
+      const names = [...new Set((Array.isArray(data.models) ? data.models : [])
+        .map(m => m?.name || m?.model)
+        .filter(Boolean))].sort();
       return res.json({ models: names });
     }
 
@@ -212,8 +234,8 @@ app.post('/api/ai/chat', async (req, res) => {
   let url, authKey;
 
   if (provider === 'ollama') {
-    const base = ollamaUrl || settings.ollamaUrl || process.env.OLLAMA_URL || 'http://localhost:11434';
-    url = `${base}/v1/chat/completions`;
+    const base = ollamaUrl || settings.ollamaUrl || process.env.OLLAMA_URL;
+    url = getOllamaChatUrl(base);
     authKey = null;
   } else {
     const cfg = AI_PROVIDERS[provider];

@@ -88,7 +88,9 @@ export default function AIHubPage() {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages]);
 
-  useEffect(() => { setModel(availableModels[0] || PROVIDER_MODELS[provider][0]); }, [provider, availableModels]);
+  useEffect(() => {
+    setModel(availableModels[0] || (provider === 'ollama' ? '' : PROVIDER_MODELS[provider][0]));
+  }, [provider, availableModels]);
 
   const updateSettings = (patch: Partial<AISettings>) => {
     const next = { ...settings, ...patch };
@@ -286,7 +288,7 @@ export default function AIHubPage() {
             <div className="flex items-center gap-2">
               <Select value={provider} onValueChange={(v) => setProvider(v as Provider)}>
                 <SelectTrigger className="w-40 bg-secondary border-border h-8 text-xs">
-                  <SelectValue />
+                  <SelectValue placeholder={modelsLoading ? 'Loading models...' : provider === 'ollama' ? 'No pulled models found' : 'Select model'} />
                 </SelectTrigger>
                 <SelectContent className="bg-card border-border">
                   {(Object.keys(PROVIDER_LABELS) as Provider[]).map(p => (
