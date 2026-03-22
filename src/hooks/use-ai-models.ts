@@ -14,8 +14,11 @@ const FALLBACK_MODELS: Record<Provider, string[]> = {
   ollama: ['llama3', 'mistral', 'codellama'],
 };
 
+const getFallbackModels = (provider: Provider) =>
+  provider === 'ollama' ? [] : FALLBACK_MODELS[provider];
+
 export function useAIModels(provider: Provider, settings: AISettings) {
-  const [models, setModels] = useState<string[]>(FALLBACK_MODELS[provider]);
+  const [models, setModels] = useState<string[]>(getFallbackModels(provider));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -38,10 +41,10 @@ export function useAIModels(provider: Provider, settings: AISettings) {
       }
       const data = await res.json();
       const names: string[] = data.models || [];
-      setModels(names.length ? names : FALLBACK_MODELS[provider]);
+      setModels(names.length ? names : getFallbackModels(provider));
     } catch (err: any) {
       setError(err.message);
-      setModels(FALLBACK_MODELS[provider]);
+      setModels(getFallbackModels(provider));
     } finally {
       setLoading(false);
     }
