@@ -9,7 +9,7 @@ export function useOllamaStatus(provider: string, ollamaUrl?: string, intervalMs
     if (provider !== 'ollama') return;
     setStatus('checking');
     try {
-      const API_BASE = import.meta.env.VITE_API_BASE || '';
+      const API_BASE = import.meta.env.VITE_API_URL || '';
       const params = new URLSearchParams();
       if (ollamaUrl) params.set('url', ollamaUrl);
       const res = await fetch(`${API_BASE}/api/ai/models/ollama?${params}`, {
