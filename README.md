@@ -207,6 +207,10 @@ curl -X POST http://localhost:3002/api/capture \
 
 Returns `{ type, collection, item }`.
 
+### OpenAPI contract
+
+- `GET /api/openapi.json` — full OpenAPI 3 spec describing every endpoint, schema, and auth requirement. Point assistants, code generators, or tools like Swagger UI / `openapi-typescript` at this URL to get a stable, machine-readable contract.
+
 ### Revisions & Audit
 
 - `GET  /api/:collection/:id/revisions` — full prior snapshots (documents, snippets, tasks)
