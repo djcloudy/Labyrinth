@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, FolderKanban, FileText, Code2, Image, Bot, Settings, ChevronRight, ListTodo } from 'lucide-react';
+import { LayoutDashboard, FolderKanban, FileText, Code2, Image, Bot, Settings, ChevronRight, ListTodo, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useCapture } from '@/hooks/use-capture';
 
 const navItems = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -15,6 +16,7 @@ const navItems = [
 
 export default function AppSidebar() {
   const location = useLocation();
+  const { openCapture } = useCapture();
 
   return (
     <aside className="fixed left-0 top-0 z-40 flex h-screen w-60 flex-col border-r border-border bg-sidebar">
@@ -23,6 +25,19 @@ export default function AppSidebar() {
           L
         </div>
         <span className="text-lg font-bold tracking-wide text-foreground">LABYRINTH</span>
+      </div>
+
+      <div className="px-3 pb-3">
+        <button
+          onClick={() => openCapture()}
+          className="group flex w-full items-center justify-between rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-sm font-medium text-primary transition-all hover:bg-primary/20"
+        >
+          <span className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4" />
+            Capture
+          </span>
+          <kbd className="rounded bg-background/60 px-1.5 py-0.5 text-[10px] text-muted-foreground group-hover:text-foreground">⌘K</kbd>
+        </button>
       </div>
 
       <nav className="flex-1 space-y-1 px-3 py-2">
