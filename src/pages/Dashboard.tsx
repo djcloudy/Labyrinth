@@ -34,15 +34,19 @@ export default function Dashboard() {
       <div className="animate-fade-in">
         <h1 className="mb-8 text-3xl font-bold text-foreground">Overview</h1>
 
-        <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
-          {stats.map(({ label, count, icon: Icon, colorVar }) => (
-            <div key={label} className="rounded-xl border border-border bg-card p-5 transition-colors hover:border-primary/30">
+        <div className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+          {stats.map(({ label, count, icon: Icon, colorVar, to }) => (
+            <button
+              key={label}
+              onClick={() => navigate(to)}
+              className="rounded-xl border border-border bg-card p-5 text-left transition-colors hover:border-primary/30"
+            >
               <div className="flex items-center justify-between mb-3">
                 <span className="text-xs font-semibold tracking-widest text-muted-foreground">{label}</span>
                 <Icon className={`h-5 w-5 ${colorVar}`} />
               </div>
               {loading ? <Skeleton className="h-10 w-16" /> : <p className="text-4xl font-bold text-foreground">{count}</p>}
-            </div>
+            </button>
           ))}
         </div>
 
