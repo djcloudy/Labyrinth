@@ -12,10 +12,10 @@ import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import { useAIModels } from '@/hooks/use-ai-models';
 import { useOllamaStatus } from '@/hooks/use-ollama-status';
-import { documentStore, snippetStore, projectStore, mediaStore } from '@/lib/store';
+import { documentStore, snippetStore, projectStore, mediaStore, taskStore } from '@/lib/store';
 import { useStore } from '@/hooks/use-store';
 import AttachContextDialog, { type Attachment } from '@/components/AttachContextDialog';
-import type { Document, Snippet } from '@/lib/types';
+import type { Document, Snippet, Project } from '@/lib/types';
 
 type Provider = 'openai' | 'gemini' | 'ollama';
 type Message = { role: 'user' | 'assistant' | 'system'; content: string };
@@ -72,6 +72,8 @@ export default function AIHubPage() {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [attachDialogOpen, setAttachDialogOpen] = useState(false);
   const [knowledgeBase, setKnowledgeBase] = useState(false);
+  const [knowledgeScope, setKnowledgeScope] = useState<string>('all'); // 'all' = index only, or projectId = full content
+  const { data: kbProjects } = useStore<Project>(useCallback(() => projectStore.getAll(), []));
 
   // Context sharing security
   const getContextAllowed = useCallback(() => {
@@ -112,32 +114,58 @@ export default function AIHubPage() {
 
     // Knowledge base system message
     if (knowledgeBase) {
-      const [projects, docs, snippets, media] = await Promise.all([
-        projectStore.getAll(),
-        documentStore.getAll(),
-        snippetStore.getAll(),
-        mediaStore.getAll(),
-      ]);
-      const summary = [
-        '## Your Project Knowledge Base',
-        '',
-        '### Projects',
-        ...projects.map(p => `- **${p.name}**: ${p.description || 'No description'}`),
-        '',
-        '### Documents',
-        ...docs.map(d => `- ${d.title}`),
-        '',
-        '### Snippets',
-        ...snippets.map(s => `- ${s.title} (${s.language})`),
-        '',
-        '### Media',
-        ...media.map(m => `- ${m.title} (${m.type})`),
-      ].join('\n');
-
-      contextMessages.push({
-        role: 'system',
-        content: `You have access to the user's project knowledge base. Use this information to answer their questions.\n\n${summary}`,
-      });
+      if (knowledgeScope === 'all') {
+        // Index-only: lightweight listing across everything
+        const [projects, docs, snippets, media] = await Promise.all([
+          projectStore.getAll(),
+          documentStore.getAll(),
+          snippetStore.getAll(),
+          mediaStore.getAll(),
+        ]);
+        const summary = [
+          '## Your Project Knowledge Base (Index)',
+          '',
+          '### Projects',
+          ...projects.map(p => `- **${p.name}**: ${p.description || 'No description'}`),
+          '',
+          '### Documents',
+          ...docs.map(d => `- ${d.title}`),
+          '',
+          '### Snippets',
+          ...snippets.map(s => `- ${s.title} (${s.language})`),
+          '',
+          '### Media',
+          ...media.map(m => `- ${m.title} (${m.type})`),
+        ].join('\n');
+        contextMessages.push({
+          role: 'system',
+          content: `You have access to the user's project knowledge base. Use this information to answer their questions.\n\n${summary}`,
+        });
+      } else {
+        // Full content for a single project: docs + snippets + tasks
+        const [project, docs, snippets, tasks] = await Promise.all([
+          projectStore.getById(knowledgeScope),
+          documentStore.getByProject(knowledgeScope),
+          snippetStore.getByProject(knowledgeScope),
+          taskStore.getByProject(knowledgeScope),
+        ]);
+        const parts: string[] = [
+          `## Project Knowledge Base: ${project?.name ?? 'Unknown project'}`,
+          project?.description ? `\n${project.description}\n` : '',
+          '### Documents',
+          ...(docs.length ? docs.map(d => `\n#### ${d.title}\n${d.content || '_(empty)_'}`) : ['_(none)_']),
+          '',
+          '### Snippets',
+          ...(snippets.length ? snippets.map(s => `\n#### ${s.title} (${s.language})\n\`\`\`${s.language.toLowerCase()}\n${s.code}\n\`\`\``) : ['_(none)_']),
+          '',
+          '### Tasks',
+          ...(tasks.length ? tasks.map(t => `- [${t.status}] **${t.title}** (${t.priority})${t.description ? ` — ${t.description}` : ''}`) : ['_(none)_']),
+        ];
+        contextMessages.push({
+          role: 'system',
+          content: `You have access to the full contents of this project. Use it to answer the user's questions.\n\n${parts.join('\n')}`,
+        });
+      }
     }
 
     // Attached content injection
@@ -159,7 +187,7 @@ export default function AIHubPage() {
     }
 
     return [...contextMessages, { role: 'user' as const, content: userText }];
-  }, [attachments, knowledgeBase, contextAllowed]);
+  }, [attachments, knowledgeBase, knowledgeScope, contextAllowed]);
 
   const sendMessage = useCallback(async () => {
     const text = input.trim();
@@ -436,7 +464,7 @@ export default function AIHubPage() {
 
         {/* Knowledge base toggle */}
         {contextAllowed ? (
-          <div className="mt-2 flex items-center gap-2">
+          <div className="mt-2 flex flex-wrap items-center gap-2">
             <Switch
               id="knowledge-base"
               checked={knowledgeBase}
@@ -446,7 +474,21 @@ export default function AIHubPage() {
               <Database className="h-3.5 w-3.5" />
               Include project knowledge base
             </label>
+            {knowledgeBase && (
+              <Select value={knowledgeScope} onValueChange={setKnowledgeScope}>
+                <SelectTrigger className="h-7 w-56 text-xs bg-secondary border-border">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-border">
+                  <SelectItem value="all">All projects (index only)</SelectItem>
+                  {kbProjects.map(p => (
+                    <SelectItem key={p.id} value={p.id}>{p.name} — full content</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
+
         ) : (
           <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
             <Shield className="h-3.5 w-3.5" />
