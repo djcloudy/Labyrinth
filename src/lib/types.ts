@@ -1,4 +1,14 @@
 export type SnippetLanguage = 'YAML' | 'BASH' | 'PYTHON';
+export type ContentSource = 'manual' | 'assistant' | 'import' | 'api';
+
+export interface BaseMeta {
+  tags?: string[];
+  source?: ContentSource;
+  createdBy?: string;
+  updatedBy?: string;
+  externalRef?: string;
+  notes?: string;
+}
 
 export interface Project {
   id: string;
@@ -9,7 +19,7 @@ export interface Project {
   updatedAt: string;
 }
 
-export interface Document {
+export interface Document extends BaseMeta {
   id: string;
   title: string;
   content: string;
@@ -18,7 +28,7 @@ export interface Document {
   updatedAt: string;
 }
 
-export interface Snippet {
+export interface Snippet extends BaseMeta {
   id: string;
   title: string;
   language: SnippetLanguage;
@@ -40,13 +50,39 @@ export interface MediaItem {
 export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'DONE';
 export type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH';
 
-export interface Task {
+export interface ChecklistItem {
+  id: string;
+  text: string;
+  done: boolean;
+}
+
+export interface Task extends BaseMeta {
   id: string;
   title: string;
   description: string;
   status: TaskStatus;
   priority: TaskPriority;
   projectId: string;
+  dueDate?: string;
+  checklist?: ChecklistItem[];
   createdAt: string;
   updatedAt: string;
+}
+
+export interface Revision<T = unknown> {
+  revisionId: string;
+  timestamp: string;
+  updatedBy?: string | null;
+  source?: ContentSource;
+  snapshot: T;
+}
+
+export interface AuditEntry {
+  id: string;
+  timestamp: string;
+  action: 'create' | 'update' | 'delete' | 'capture';
+  collection: string;
+  source: ContentSource;
+  title?: string;
+  type?: string;
 }
