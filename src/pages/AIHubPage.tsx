@@ -12,10 +12,10 @@ import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import { useAIModels } from '@/hooks/use-ai-models';
 import { useOllamaStatus } from '@/hooks/use-ollama-status';
-import { documentStore, snippetStore, projectStore, mediaStore } from '@/lib/store';
+import { documentStore, snippetStore, projectStore, mediaStore, taskStore } from '@/lib/store';
 import { useStore } from '@/hooks/use-store';
 import AttachContextDialog, { type Attachment } from '@/components/AttachContextDialog';
-import type { Document, Snippet } from '@/lib/types';
+import type { Document, Snippet, Project } from '@/lib/types';
 
 type Provider = 'openai' | 'gemini' | 'ollama';
 type Message = { role: 'user' | 'assistant' | 'system'; content: string };
