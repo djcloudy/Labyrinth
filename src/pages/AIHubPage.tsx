@@ -63,13 +63,9 @@ function deriveTitle(messages: Message[]): string {
 }
 
 export default function AIHubPage() {
-  const [conversations, setConversations] = useState<Conversation[]>(loadConversations);
-  const [activeId, setActiveId] = useState<string>(() => {
-    const stored = localStorage.getItem(ACTIVE_CONVERSATION_KEY);
-    const list = loadConversations();
-    if (stored && list.some(c => c.id === stored)) return stored;
-    return list[0]?.id ?? '';
-  });
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [activeId, setActiveId] = useState<string>('');
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
 
@@ -88,30 +84,47 @@ export default function AIHubPage() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  useEffect(() => { persistConversations(conversations); }, [conversations]);
   useEffect(() => { if (activeId) localStorage.setItem(ACTIVE_CONVERSATION_KEY, activeId); }, [activeId]);
 
-  const newConversation = useCallback(() => {
-    const now = new Date().toISOString();
-    const conv: Conversation = {
-      id: crypto.randomUUID(),
+  // Initial load from store
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const all = await conversationStore.getAll();
+        if (cancelled) return;
+        setConversations(all);
+        const stored = localStorage.getItem(ACTIVE_CONVERSATION_KEY);
+        if (stored && all.some(c => c.id === stored)) setActiveId(stored);
+        else if (all.length) setActiveId(all[0].id);
+      } catch (e) {
+        console.error('Failed to load conversations', e);
+      } finally {
+        if (!cancelled) setLoaded(true);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const newConversation = useCallback(async () => {
+    const conv = await conversationStore.create({
       title: 'New chat',
       messages: [],
       provider: provider ?? 'openai',
       model: model ?? PROVIDER_MODELS.openai[0],
-      createdAt: now,
-      updatedAt: now,
-    };
+    });
     setConversations(prev => [conv, ...prev]);
     setActiveId(conv.id);
     return conv;
   }, [provider, model]);
 
+  // Ensure at least one conversation exists once load completes
   useEffect(() => {
-    if (conversations.length === 0) newConversation();
-    else if (!activeId) setActiveId(conversations[0].id);
+    if (loaded && conversations.length === 0) {
+      newConversation();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [loaded]);
 
   const updateActive = useCallback((patch: Partial<Conversation> | ((c: Conversation) => Partial<Conversation>)) => {
     setConversations(prev => prev.map(c => {
