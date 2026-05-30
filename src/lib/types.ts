@@ -86,3 +86,21 @@ export interface AuditEntry {
   title?: string;
   type?: string;
 }
+
+export type AIProvider = 'openai' | 'gemini' | 'ollama';
+export type ChatRole = 'user' | 'assistant' | 'system';
+
+export interface ChatMessage {
+  role: ChatRole;
+  content: string;
+}
+
+export interface Conversation {
+  id: string;
+  title: string;
+  messages: ChatMessage[];
+  provider: AIProvider;
+  model: string;
+  createdAt: string;
+  updatedAt: string;
+}
