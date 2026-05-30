@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
-import { Eye, EyeOff, FileText, Save, X, Sparkles } from 'lucide-react';
+import { Eye, EyeOff, FileText, Save, X, Sparkles, History } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
+import RevisionsDialog from '@/components/RevisionsDialog';
+import { documentStore } from '@/lib/store';
 import { Document, Project } from '@/lib/types';
 import { DOC_TEMPLATES } from '@/lib/templates';
 import { cn } from '@/lib/utils';
