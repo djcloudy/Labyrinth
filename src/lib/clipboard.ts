@@ -22,13 +22,14 @@ function legacyCopy(value: string): boolean {
     ta.style.boxShadow = 'none';
     ta.style.background = 'transparent';
     ta.style.color = 'transparent';
-    document.body.appendChild(ta);
     const prevActive = document.activeElement as HTMLElement | null;
+    const root = prevActive?.closest?.('[role="dialog"], [data-radix-dialog-content]') || document.body;
+    root.appendChild(ta);
     ta.focus();
     ta.select();
     ta.setSelectionRange(0, value.length);
     const ok = document.execCommand('copy');
-    document.body.removeChild(ta);
+    root.removeChild(ta);
     prevActive?.focus?.();
     return ok;
   } catch {
