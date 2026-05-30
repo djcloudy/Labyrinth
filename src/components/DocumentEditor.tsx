@@ -18,11 +18,13 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   editing: Document | null;
   projects: Project[];
+  /** If set, project picker is hidden and this id is used for new documents. */
+  forcedProjectId?: string | null;
   onSave: (data: { title: string; content: string; projectId: string | null }) => Promise<void> | void;
   onRefresh?: () => void;
 }
 
-export default function DocumentEditor({ open, onOpenChange, editing, projects, onSave, onRefresh }: Props) {
+export default function DocumentEditor({ open, onOpenChange, editing, projects, forcedProjectId, onSave, onRefresh }: Props) {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [projectId, setProjectId] = useState<string>('none');
@@ -34,10 +36,10 @@ export default function DocumentEditor({ open, onOpenChange, editing, projects, 
     if (open) {
       setTitle(editing?.title || '');
       setContent(editing?.content || '');
-      setProjectId(editing?.projectId || 'none');
+      setProjectId(editing?.projectId || forcedProjectId || 'none');
       setShowPreview(true);
     }
-  }, [open, editing]);
+  }, [open, editing, forcedProjectId]);
 
   const applyTemplate = (id: string) => {
     const tpl = DOC_TEMPLATES.find(t => t.id === id);
@@ -50,7 +52,10 @@ export default function DocumentEditor({ open, onOpenChange, editing, projects, 
     if (!title.trim()) return;
     setSaving(true);
     try {
-      await onSave({ title, content, projectId: projectId === 'none' ? null : projectId });
+      const pid = forcedProjectId !== undefined && forcedProjectId !== null
+        ? forcedProjectId
+        : projectId === 'none' ? null : projectId;
+      await onSave({ title, content, projectId: pid });
       onOpenChange(false);
     } finally {
       setSaving(false);
