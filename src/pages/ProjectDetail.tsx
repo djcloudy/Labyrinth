@@ -56,6 +56,9 @@ export default function ProjectDetail() {
   const [viewSnippet, setViewSnippet] = useState<Snippet | null>(null);
   const [viewTask, setViewTask] = useState<Task | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [tagFilter, setTagFilter] = useState<string | null>(null);
+
 
   if (project === undefined) return <AppLayout><Skeleton className="h-8 w-48" /></AppLayout>;
   if (project === null) return <AppLayout><p className="text-muted-foreground">Project not found.</p></AppLayout>;
