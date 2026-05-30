@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { Bot, Send, Settings2, Trash2, Loader2, AlertCircle, RefreshCw, Paperclip, X, Database, Shield, Wifi, WifiOff, Plus, MessageSquare, Pencil, Check } from 'lucide-react';
+import { Bot, Send, Settings2, Trash2, Loader2, AlertCircle, RefreshCw, Paperclip, X, Database, Shield, Wifi, WifiOff, Plus, MessageSquare, Pencil } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import AppLayout from '@/components/AppLayout';
 import { Button } from '@/components/ui/button';
