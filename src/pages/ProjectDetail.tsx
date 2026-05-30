@@ -59,9 +59,22 @@ export default function ProjectDetail() {
   const [search, setSearch] = useState('');
   const [tagFilter, setTagFilter] = useState<string | null>(null);
 
+  // Derived filtering (hooks must run before any early return)
+  const q = search.trim().toLowerCase();
+  const matchesQ = (s: string) => !q || s.toLowerCase().includes(q);
+  const hasTag = (t?: string[]) => !tagFilter || (t || []).includes(tagFilter);
+  const filteredDocs = useMemo(() => docs.filter(d => hasTag(d.tags) && (matchesQ(d.title) || matchesQ(d.content || ''))), [docs, q, tagFilter]);
+  const filteredTasks = useMemo(() => tasks.filter(t => hasTag(t.tags) && (matchesQ(t.title) || matchesQ(t.description || ''))), [tasks, q, tagFilter]);
+  const filteredSnippets = useMemo(() => snippets.filter(s => hasTag(s.tags) && (matchesQ(s.title) || matchesQ(s.code || ''))), [snippets, q, tagFilter]);
+  const allProjectTags = useMemo(() => {
+    const s = new Set<string>();
+    [...docs, ...tasks, ...snippets].forEach(item => (item.tags || []).forEach(t => s.add(t)));
+    return Array.from(s).sort();
+  }, [docs, tasks, snippets]);
 
   if (project === undefined) return <AppLayout><Skeleton className="h-8 w-48" /></AppLayout>;
   if (project === null) return <AppLayout><p className="text-muted-foreground">Project not found.</p></AppLayout>;
+
 
   const openDocCreate = () => { setEditingDoc(null); setDocEditorOpen(true); };
   const openDocEdit = (d: Document) => { setEditingDoc(d); setDocEditorOpen(true); };
