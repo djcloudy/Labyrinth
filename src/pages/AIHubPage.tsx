@@ -395,9 +395,78 @@ export default function AIHubPage() {
   const clearChat = () => { setMessages([]); setError(null); };
   const hasApiKey = provider === 'ollama' || settings[`${provider}ApiKey` as keyof AISettings];
 
+  const sortedConversations = useMemo(
+    () => [...conversations].sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || '')),
+    [conversations]
+  );
+
   return (
     <AppLayout>
-      <div className="animate-fade-in flex h-[calc(100vh-2rem)] flex-col">
+      <div className="animate-fade-in flex h-[calc(100vh-2rem)] gap-4">
+        {/* Conversation sidebar */}
+        <aside className="hidden w-64 shrink-0 flex-col rounded-xl border border-border bg-card/50 p-3 md:flex">
+          <Button onClick={() => newConversation()} size="sm" className="mb-3 w-full justify-start gap-2">
+            <Plus className="h-4 w-4" /> New chat
+          </Button>
+          <div className="flex-1 overflow-y-auto space-y-1 pr-1">
+            {sortedConversations.length === 0 && (
+              <p className="px-2 py-4 text-center text-xs text-muted-foreground">No conversations yet</p>
+            )}
+            {sortedConversations.map(c => {
+              const isActive = c.id === activeId;
+              const isRenaming = renamingId === c.id;
+              return (
+                <div
+                  key={c.id}
+                  className={cn(
+                    'group flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm transition-colors cursor-pointer',
+                    isActive ? 'bg-primary/15 text-foreground' : 'hover:bg-secondary text-muted-foreground'
+                  )}
+                  onClick={() => !isRenaming && setActiveId(c.id)}
+                >
+                  <MessageSquare className={cn('h-3.5 w-3.5 shrink-0', isActive && 'text-primary')} />
+                  {isRenaming ? (
+                    <Input
+                      autoFocus
+                      value={renameValue}
+                      onChange={e => setRenameValue(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') commitRename(c.id);
+                        if (e.key === 'Escape') setRenamingId(null);
+                      }}
+                      onBlur={() => commitRename(c.id)}
+                      onClick={e => e.stopPropagation()}
+                      className="h-6 text-xs px-1.5"
+                    />
+                  ) : (
+                    <span className="flex-1 truncate text-xs">{c.title || 'New chat'}</span>
+                  )}
+                  {!isRenaming && (
+                    <div className="flex shrink-0 items-center opacity-0 group-hover:opacity-100">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setRenamingId(c.id); setRenameValue(c.title); }}
+                        className="rounded p-1 hover:bg-accent"
+                        title="Rename"
+                      >
+                        <Pencil className="h-3 w-3" />
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); deleteConversation(c.id); }}
+                        className="rounded p-1 hover:bg-accent text-destructive"
+                        title="Delete conversation"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </aside>
+
+        {/* Main chat column */}
+        <div className="flex flex-1 flex-col min-w-0">
         {/* Header */}
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
