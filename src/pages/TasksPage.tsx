@@ -1,9 +1,10 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, Pencil, Trash2, CheckCircle2, Circle, Clock, Search, GripVertical, Calendar as CalendarIcon, ListChecks, X, Tag } from 'lucide-react';
+import { Plus, Pencil, Trash2, CheckCircle2, Circle, Clock, Search, GripVertical, Calendar as CalendarIcon, ListChecks, X, Tag, History } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { format, isPast, isToday } from 'date-fns';
 import AppLayout from '@/components/AppLayout';
+import RevisionsDialog from '@/components/RevisionsDialog';
 import { taskStore, projectStore } from '@/lib/store';
 import { useStore } from '@/hooks/use-store';
 import { Task, TaskStatus, TaskPriority, Project, ChecklistItem } from '@/lib/types';
@@ -49,6 +50,7 @@ export default function TasksPage() {
   const [tagsInput, setTagsInput] = useState<string>('');
   const [checklist, setChecklist] = useState<ChecklistItem[]>([]);
   const [showDetails, setShowDetails] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [filterProject, setFilterProject] = useState<string>('all');
   const [filterTag, setFilterTag] = useState<string>('all');
   const [search, setSearch] = useState('');
@@ -309,7 +311,14 @@ export default function TasksPage() {
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogContent className="bg-card border-border max-w-lg">
             <DialogHeader>
-              <DialogTitle className="text-base">{editing ? 'Edit Task' : 'New Task'}</DialogTitle>
+              <div className="flex items-center justify-between gap-2">
+                <DialogTitle className="text-base">{editing ? 'Edit Task' : 'New Task'}</DialogTitle>
+                {editing && (
+                  <Button variant="ghost" size="sm" onClick={() => setHistoryOpen(true)} className="gap-1.5 text-xs h-7">
+                    <History className="h-3.5 w-3.5" /> History
+                  </Button>
+                )}
+              </div>
               <DialogDescription className="sr-only">Task form</DialogDescription>
             </DialogHeader>
             <div className="space-y-3">
@@ -449,6 +458,14 @@ export default function TasksPage() {
             </div>
           </DialogContent>
         </Dialog>
+
+        <RevisionsDialog
+          open={historyOpen}
+          onOpenChange={setHistoryOpen}
+          collection="tasks"
+          id={editing?.id ?? null}
+          onRestored={() => { setDialogOpen(false); refresh(); }}
+        />
       </div>
     </AppLayout>
   );
