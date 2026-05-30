@@ -150,7 +150,8 @@ export default function TasksPage() {
 
         {loading ? (
           <div className="space-y-4">{[1, 2, 3].map(i => <Skeleton key={i} className="h-20 w-full rounded-xl" />)}</div>
-        ) : (
+        ) : tasks.length === 0 ? null : (
+
           <DragDropContext onDragEnd={handleDragEnd}>
             <div className="grid gap-6 lg:grid-cols-3">
               {(['TODO', 'IN_PROGRESS', 'DONE'] as TaskStatus[]).map(statusKey => {
