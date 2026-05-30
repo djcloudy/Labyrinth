@@ -725,6 +725,7 @@ export default function AIHubPage() {
             </div>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
     </AppLayout>
   );
