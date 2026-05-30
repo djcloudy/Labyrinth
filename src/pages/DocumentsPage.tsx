@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { Plus, Pencil, Trash2, ChevronDown, Search } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
+import { markdownComponents } from '@/components/MarkdownCode';
 import AppLayout from '@/components/AppLayout';
 import DocumentEditor from '@/components/DocumentEditor';
 import { documentStore, projectStore } from '@/lib/store';
@@ -126,7 +127,7 @@ export default function DocumentsPage() {
                         prose-hr:border-border
                       ">
                         {doc.content ? (
-                          <ReactMarkdown remarkPlugins={[remarkBreaks]}>{doc.content}</ReactMarkdown>
+                          <ReactMarkdown remarkPlugins={[remarkBreaks]} components={markdownComponents}>{doc.content}</ReactMarkdown>
                         ) : (
                           <p className="italic text-muted-foreground">Empty document</p>
                         )}

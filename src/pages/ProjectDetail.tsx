@@ -9,6 +9,7 @@ import AppLayout from '@/components/AppLayout';
 import DocumentEditor from '@/components/DocumentEditor';
 import SnippetEditor from '@/components/SnippetEditor';
 import TaskEditor from '@/components/TaskEditor';
+import { markdownComponents } from '@/components/MarkdownCode';
 import { projectStore, documentStore, snippetStore, taskStore } from '@/lib/store';
 import { Project, Document, Snippet, SnippetLanguage, Task, TaskStatus, TaskPriority } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -330,7 +331,7 @@ export default function ProjectDetail() {
               prose-hr:border-border
             ">
               {viewDoc?.content ? (
-                <ReactMarkdown remarkPlugins={[remarkBreaks]}>{viewDoc.content}</ReactMarkdown>
+                <ReactMarkdown remarkPlugins={[remarkBreaks]} components={markdownComponents}>{viewDoc.content}</ReactMarkdown>
               ) : (
                 <span className="text-muted-foreground italic">Empty document</span>
               )}

@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import RevisionsDialog from '@/components/RevisionsDialog';
+import { markdownComponents } from '@/components/MarkdownCode';
 
 import { Document, Project } from '@/lib/types';
 import { DOC_TEMPLATES } from '@/lib/templates';
@@ -172,7 +173,7 @@ export default function DocumentEditor({ open, onOpenChange, editing, projects, 
                     "prose-table:text-foreground prose-th:text-foreground prose-th:border-border prose-td:border-border",
                   )}>
                     {content.trim()
-                      ? <ReactMarkdown remarkPlugins={[remarkBreaks]}>{content}</ReactMarkdown>
+                      ? <ReactMarkdown remarkPlugins={[remarkBreaks]} components={markdownComponents}>{content}</ReactMarkdown>
                       : <p className="italic text-muted-foreground">Preview will appear here.</p>}
                   </div>
                 </ResizablePanel>
