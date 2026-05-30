@@ -321,9 +321,26 @@ export default function CaptureDialog() {
             </div>
           )}
 
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setSaveToKnowledge(v => !v)}
+              className={cn(
+                'flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs transition-colors',
+                saveToKnowledge
+                  ? 'border-primary bg-primary/15 text-primary'
+                  : 'border-border bg-secondary text-muted-foreground hover:text-foreground'
+              )}
+              title="Save as general knowledge (no project)"
+            >
+              <BookOpen className="h-3.5 w-3.5" />
+              Save to Knowledge Base
+            </button>
+          </div>
+
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Select value={projectId} onValueChange={setProjectId}>
-              <SelectTrigger className="bg-secondary border-border">
+            <Select value={projectId} onValueChange={setProjectId} disabled={saveToKnowledge}>
+              <SelectTrigger className={cn('bg-secondary border-border', saveToKnowledge && 'opacity-50')}>
                 <SelectValue placeholder="Link to project" />
               </SelectTrigger>
               <SelectContent className="bg-card border-border">
