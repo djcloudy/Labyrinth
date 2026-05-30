@@ -44,8 +44,9 @@ export default function CommandPalette() {
       apiGetAll<Snippet>('snippets').catch(() => []),
       apiGetAll<Task>('tasks').catch(() => []),
       apiGetAll<Project>('projects').catch(() => []),
-    ]).then(([documents, snippets, tasks, projects]) => {
-      setIndex({ documents, snippets, tasks, projects });
+      apiGetAll<KnowledgeEntry>('knowledge').catch(() => []),
+    ]).then(([documents, snippets, tasks, projects, knowledge]) => {
+      setIndex({ documents, snippets, tasks, projects, knowledge });
     });
   }, [open]);
 
@@ -64,6 +65,7 @@ export default function CommandPalette() {
       documents: index.documents.filter(d => match(d.title, d.content)).slice(0, 8),
       snippets: index.snippets.filter(s => match(s.title, s.code, s.language)).slice(0, 8),
       tasks: index.tasks.filter(t => match(t.title, t.description, ...(t.tags || []))).slice(0, 8),
+      knowledge: index.knowledge.filter(k => match(k.title, k.content, k.code, k.description, k.url, ...(k.tags || []))).slice(0, 8),
     };
   }, [hasQuery, q, index]);
 
