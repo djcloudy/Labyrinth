@@ -50,7 +50,6 @@ const App = () => {
               <Route path="/snippets" element={<SnippetsPage />} />
               <Route path="/media" element={<MediaPage />} />
               <Route path="/ai-hub" element={<AIHubPage />} />
-              <Route path="/ai-hub" element={<AIHubPage />} />
               <Route path="/knowledge" element={<KnowledgePage />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/audit" element={<AuditPage />} />
