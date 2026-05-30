@@ -183,7 +183,7 @@ export default function DocumentEditor({ open, onOpenChange, editing, projects, 
 
         <div className="flex items-center justify-end gap-2 border-t border-border px-5 py-3 shrink-0">
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleSave} disabled={saving || !title.trim()} className="gap-2">
+          <Button onClick={handleSave} disabled={saving} className="gap-2">
             <Save className="h-3.5 w-3.5" />
             {saving ? 'Saving...' : editing ? 'Save' : 'Create'}
           </Button>
