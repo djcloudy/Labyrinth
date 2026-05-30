@@ -43,6 +43,9 @@ export default function SettingsPage() {
   const [storageMode, setStorageMode] = useState<'checking' | 'disk' | 'local'>('checking');
   const [dataDir, setDataDir] = useState<string>('');
   const [contextSharing, setContextSharing] = useState<ContextSharingSettings>(loadContextSharing);
+  const [retention, setRetention] = useState<RetentionSettings>(loadRetention);
+  const [conversationCount, setConversationCount] = useState<number | null>(null);
+  const [pruning, setPruning] = useState(false);
 
   const toggleContextSharing = (provider: Provider) => {
     const next = { ...contextSharing, [provider]: !contextSharing[provider] };
@@ -50,10 +53,49 @@ export default function SettingsPage() {
     localStorage.setItem(CONTEXT_SHARING_KEY, JSON.stringify(next));
   };
 
+  const updateMaxConversations = (value: number) => {
+    const safe = Number.isFinite(value) && value > 0 ? Math.floor(value) : DEFAULT_MAX_CONVERSATIONS;
+    const next = { ...retention, maxConversations: safe };
+    setRetention(next);
+    localStorage.setItem(RETENTION_KEY, JSON.stringify(next));
+  };
+
+  const refreshConversationCount = async () => {
+    try {
+      const all = await conversationStore.getAll();
+      setConversationCount(all.length);
+    } catch { setConversationCount(null); }
+  };
+
+  const pruneOldConversations = async () => {
+    setPruning(true);
+    try {
+      const all = await conversationStore.getAll();
+      const sorted = [...all].sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+      const toDelete = sorted.slice(retention.maxConversations);
+      if (toDelete.length === 0) {
+        toast({ title: 'Nothing to delete', description: `You have ${all.length} conversations (limit ${retention.maxConversations}).` });
+        return;
+      }
+      if (!confirm(`Delete ${toDelete.length} older conversation${toDelete.length === 1 ? '' : 's'}? This cannot be undone.`)) return;
+      for (const c of toDelete) {
+        await conversationStore.delete(c.id);
+      }
+      toast({ title: 'Conversations cleaned up', description: `Deleted ${toDelete.length} older conversation${toDelete.length === 1 ? '' : 's'}.` });
+      await refreshConversationCount();
+    } catch (err) {
+      console.error(err);
+      toast({ title: 'Cleanup failed', description: String(err), variant: 'destructive' });
+    } finally {
+      setPruning(false);
+    }
+  };
+
   useEffect(() => {
     checkApiHealth().then(({ available, health }) => {
       setStorageMode(available ? 'disk' : 'local');
       if (health) setDataDir(health.dataDir);
+      refreshConversationCount();
     });
   }, []);
 
