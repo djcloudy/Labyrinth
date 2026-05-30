@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
-import { FolderKanban, FileText, Code2, Image, Bot, ListTodo } from 'lucide-react';
+import { FolderKanban, FileText, Code2, Image, Bot, ListTodo, BookOpen } from 'lucide-react';
 import AppLayout from '@/components/AppLayout';
-import { projectStore, documentStore, snippetStore, mediaStore, taskStore } from '@/lib/store';
+import { projectStore, documentStore, snippetStore, mediaStore, taskStore, knowledgeStore } from '@/lib/store';
 import { useStore } from '@/hooks/use-store';
 import { useCallback } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -13,18 +13,21 @@ export default function Dashboard() {
   const { data: snippets, loading: loadingSnippets } = useStore(useCallback(() => snippetStore.getAll(), []));
   const { data: media, loading: loadingMedia } = useStore(useCallback(() => mediaStore.getAll(), []));
   const { data: tasks, loading: loadingTasks } = useStore(useCallback(() => taskStore.getAll(), []));
+  const { data: knowledge, loading: loadingKnowledge } = useStore(useCallback(() => knowledgeStore.getAll(), []));
 
-  const loading = loadingProjects || loadingDocs || loadingSnippets || loadingMedia || loadingTasks;
+  const loading = loadingProjects || loadingDocs || loadingSnippets || loadingMedia || loadingTasks || loadingKnowledge;
 
   const stats = [
-    { label: 'PROJECTS', count: projects.length, icon: FolderKanban, colorVar: 'text-primary' },
-    { label: 'TASKS', count: tasks.length, icon: ListTodo, colorVar: 'text-warning' },
-    { label: 'DOCUMENTS', count: documents.length, icon: FileText, colorVar: 'text-info' },
-    { label: 'SNIPPETS', count: snippets.length, icon: Code2, colorVar: 'text-success' },
-    { label: 'MEDIA', count: media.length, icon: Image, colorVar: 'text-destructive' },
+    { label: 'PROJECTS', count: projects.length, icon: FolderKanban, colorVar: 'text-primary', to: '/projects' },
+    { label: 'TASKS', count: tasks.length, icon: ListTodo, colorVar: 'text-warning', to: '/tasks' },
+    { label: 'DOCUMENTS', count: documents.length, icon: FileText, colorVar: 'text-info', to: '/documents' },
+    { label: 'SNIPPETS', count: snippets.length, icon: Code2, colorVar: 'text-success', to: '/snippets' },
+    { label: 'MEDIA', count: media.length, icon: Image, colorVar: 'text-destructive', to: '/media' },
+    { label: 'KNOWLEDGE', count: knowledge.length, icon: BookOpen, colorVar: 'text-primary', to: '/knowledge' },
   ];
 
   const recentProjects = [...projects].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()).slice(0, 5);
+  const recentKnowledge = [...knowledge].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()).slice(0, 5);
 
   return (
     <AppLayout>
