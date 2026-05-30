@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import RevisionsDialog from '@/components/RevisionsDialog';
+import { markdownComponents } from '@/components/MarkdownCode';
 
 import { Document, Project } from '@/lib/types';
 import { DOC_TEMPLATES } from '@/lib/templates';
