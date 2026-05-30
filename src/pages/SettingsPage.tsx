@@ -1,9 +1,12 @@
-import { Settings, HardDrive, Database, Shield } from 'lucide-react';
+import { Settings, HardDrive, Database, Shield, MessageSquare } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import AppLayout from '@/components/AppLayout';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { checkApiHealth, getHealthData, isApiAvailable } from '@/lib/api';
+import { conversationStore } from '@/lib/store';
+import { toast } from '@/hooks/use-toast';
 
 type Provider = 'openai' | 'gemini' | 'ollama';
 
