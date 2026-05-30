@@ -49,18 +49,21 @@ export default function DocumentEditor({ open, onOpenChange, editing, projects, 
   };
 
   const handleSave = async () => {
-    if (!title.trim()) return;
     setSaving(true);
     try {
       const pid = forcedProjectId !== undefined && forcedProjectId !== null
         ? forcedProjectId
         : projectId === 'none' ? null : projectId;
-      await onSave({ title, content, projectId: pid });
+      const finalTitle = title.trim()
+        || content.trim().split('\n')[0]?.replace(/^#+\s*/, '').slice(0, 80)
+        || 'Untitled document';
+      await onSave({ title: finalTitle, content, projectId: pid });
       onOpenChange(false);
     } finally {
       setSaving(false);
     }
   };
+
 
   useEffect(() => {
     if (!open) return;
