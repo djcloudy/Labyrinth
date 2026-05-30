@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { Plus, Pencil, Trash2, ChevronDown, Search } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
+import { markdownComponents } from '@/components/MarkdownCode';
 import AppLayout from '@/components/AppLayout';
 import DocumentEditor from '@/components/DocumentEditor';
 import { documentStore, projectStore } from '@/lib/store';
