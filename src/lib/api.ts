@@ -71,3 +71,21 @@ export async function apiDelete(collection: string, id: string): Promise<void> {
   const res = await fetch(`${API_BASE}/api/${collection}/${id}`, { method: 'DELETE' });
   if (!res.ok) throw new Error(`Failed to delete from ${collection}`);
 }
+
+export async function apiGetRevisions<T = unknown>(collection: string, id: string): Promise<Array<{ revisionId: string; timestamp: string; updatedBy?: string | null; source?: string; snapshot: T }>> {
+  const res = await fetch(`${API_BASE}/api/${collection}/${id}/revisions`);
+  if (!res.ok) throw new Error('Failed to load revisions');
+  return res.json();
+}
+
+export async function apiRestoreRevision<T>(collection: string, id: string, revisionId: string): Promise<T> {
+  const res = await fetch(`${API_BASE}/api/${collection}/${id}/restore/${revisionId}`, { method: 'POST' });
+  if (!res.ok) throw new Error('Failed to restore revision');
+  return res.json();
+}
+
+export async function apiGetAudit(): Promise<Array<{ id: string; timestamp: string; action: string; collection: string; source: string; title?: string; type?: string }>> {
+  const res = await fetch(`${API_BASE}/api/audit`);
+  if (!res.ok) throw new Error('Failed to load audit log');
+  return res.json();
+}

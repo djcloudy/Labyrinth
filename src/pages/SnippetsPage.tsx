@@ -1,10 +1,11 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, Pencil, Trash2, Copy, Check, Search, Sparkles } from 'lucide-react';
+import { Plus, Pencil, Trash2, Copy, Check, Search, Sparkles, History } from 'lucide-react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import AppLayout from '@/components/AppLayout';
 import CodeEditor from '@/components/CodeEditor';
+import RevisionsDialog from '@/components/RevisionsDialog';
 import { snippetStore, projectStore } from '@/lib/store';
 import { useStore } from '@/hooks/use-store';
 import { Snippet, SnippetLanguage, Project } from '@/lib/types';
@@ -34,6 +35,7 @@ export default function SnippetsPage() {
   const [search, setSearch] = useState('');
   const [filterProject, setFilterProject] = useState<string>('all');
   const [filterLang, setFilterLang] = useState<string>('all');
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [searchParams] = useSearchParams();
   const highlightId = searchParams.get('snippet');
   const highlightRef = useRef<HTMLDivElement>(null);
@@ -168,7 +170,14 @@ export default function SnippetsPage() {
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogContent className="bg-card border-border max-w-3xl">
             <DialogHeader>
-              <DialogTitle>{editing ? 'Edit Snippet' : 'New Snippet'}</DialogTitle>
+              <div className="flex items-center justify-between gap-2">
+                <DialogTitle>{editing ? 'Edit Snippet' : 'New Snippet'}</DialogTitle>
+                {editing && (
+                  <Button variant="ghost" size="sm" onClick={() => setHistoryOpen(true)} className="gap-1.5 text-xs">
+                    <History className="h-3.5 w-3.5" /> History
+                  </Button>
+                )}
+              </div>
               <DialogDescription className="sr-only">Snippet editor with syntax highlighting</DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
@@ -217,6 +226,14 @@ export default function SnippetsPage() {
             </div>
           </DialogContent>
         </Dialog>
+
+        <RevisionsDialog
+          open={historyOpen}
+          onOpenChange={setHistoryOpen}
+          collection="snippets"
+          id={editing?.id ?? null}
+          onRestored={() => { setDialogOpen(false); refresh(); }}
+        />
       </div>
     </AppLayout>
   );

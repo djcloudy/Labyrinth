@@ -17,6 +17,7 @@ import SnippetsPage from "./pages/SnippetsPage";
 import MediaPage from "./pages/MediaPage";
 import AIHubPage from "./pages/AIHubPage";
 import SettingsPage from "./pages/SettingsPage";
+import AuditPage from "./pages/AuditPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -49,6 +50,7 @@ const App = () => {
               <Route path="/media" element={<MediaPage />} />
               <Route path="/ai-hub" element={<AIHubPage />} />
               <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/audit" element={<AuditPage />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </CaptureProvider>

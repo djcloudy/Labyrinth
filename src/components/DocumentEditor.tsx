@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
-import { Eye, EyeOff, FileText, Save, X, Sparkles } from 'lucide-react';
+import { Eye, EyeOff, FileText, Save, X, Sparkles, History } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
+import RevisionsDialog from '@/components/RevisionsDialog';
+
 import { Document, Project } from '@/lib/types';
 import { DOC_TEMPLATES } from '@/lib/templates';
 import { cn } from '@/lib/utils';
@@ -17,14 +19,16 @@ interface Props {
   editing: Document | null;
   projects: Project[];
   onSave: (data: { title: string; content: string; projectId: string | null }) => Promise<void> | void;
+  onRefresh?: () => void;
 }
 
-export default function DocumentEditor({ open, onOpenChange, editing, projects, onSave }: Props) {
+export default function DocumentEditor({ open, onOpenChange, editing, projects, onSave, onRefresh }: Props) {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [projectId, setProjectId] = useState<string>('none');
   const [showPreview, setShowPreview] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -83,6 +87,11 @@ export default function DocumentEditor({ open, onOpenChange, editing, projects, 
                 autoFocus={!editing}
               />
             </div>
+            {editing && (
+              <Button variant="ghost" size="sm" onClick={() => setHistoryOpen(true)} title="Revision history">
+                <History className="h-4 w-4" />
+              </Button>
+            )}
             <Button variant="ghost" size="sm" onClick={() => setShowPreview(p => !p)} title="Toggle preview (⌘P)">
               {showPreview ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </Button>
@@ -170,6 +179,13 @@ export default function DocumentEditor({ open, onOpenChange, editing, projects, 
           </Button>
         </div>
       </DialogContent>
+      <RevisionsDialog
+        open={historyOpen}
+        onOpenChange={setHistoryOpen}
+        collection="documents"
+        id={editing?.id ?? null}
+        onRestored={() => { onRefresh?.(); onOpenChange(false); }}
+      />
     </Dialog>
   );
 }

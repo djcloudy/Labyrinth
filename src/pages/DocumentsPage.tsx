@@ -145,6 +145,7 @@ export default function DocumentsPage() {
           editing={editing}
           projects={projects}
           onSave={handleSave}
+          onRefresh={refresh}
         />
       </div>
     </AppLayout>
