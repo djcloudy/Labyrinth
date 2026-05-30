@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Pencil, Trash2, FileText, Code2, ListTodo, Circle, Clock, CheckCircle2, Copy, Check, Plus, Search, Tag } from 'lucide-react';
+import { ArrowLeft, Pencil, Trash2, FileText, Code2, ListTodo, Circle, Clock, CheckCircle2, Copy, Check, Plus, Search, Tag, Image, Eye } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -10,8 +10,8 @@ import DocumentEditor from '@/components/DocumentEditor';
 import SnippetEditor from '@/components/SnippetEditor';
 import TaskEditor from '@/components/TaskEditor';
 import { markdownComponents } from '@/components/MarkdownCode';
-import { projectStore, documentStore, snippetStore, taskStore } from '@/lib/store';
-import { Project, Document, Snippet, SnippetLanguage, Task, TaskStatus, TaskPriority } from '@/lib/types';
+import { projectStore, documentStore, snippetStore, taskStore, mediaStore } from '@/lib/store';
+import { Project, Document, Snippet, SnippetLanguage, Task, TaskStatus, TaskPriority, MediaItem } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
@@ -20,6 +20,7 @@ import { useStore } from '@/hooks/use-store';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { copyWithToast } from '@/lib/clipboard';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 
 
 const LANG_COLORS: Record<SnippetLanguage, string> = { BASH: 'bg-warning/20 text-warning', YAML: 'bg-info/20 text-info', PYTHON: 'bg-success/20 text-success' };
@@ -44,6 +45,7 @@ export default function ProjectDetail() {
   const { data: docs, loading: loadingDocs, refresh: refreshDocs } = useStore(useCallback(() => documentStore.getByProject(id!), [id]));
   const { data: snippets, loading: loadingSnippets, refresh: refreshSnippets } = useStore(useCallback(() => snippetStore.getByProject(id!), [id]));
   const { data: tasks, loading: loadingTasks, refresh: refreshTasks } = useStore(useCallback(() => taskStore.getByProject(id!), [id]));
+  const { data: media, loading: loadingMedia, refresh: refreshMedia } = useStore(useCallback(() => mediaStore.getByProject(id!), [id]));
 
   // Editor state
   const [docEditorOpen, setDocEditorOpen] = useState(false);
@@ -57,9 +59,13 @@ export default function ProjectDetail() {
   const [viewDoc, setViewDoc] = useState<Document | null>(null);
   const [viewSnippet, setViewSnippet] = useState<Snippet | null>(null);
   const [viewTask, setViewTask] = useState<Task | null>(null);
+  const [viewMedia, setViewMedia] = useState<MediaItem | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [tagFilter, setTagFilter] = useState<string | null>(null);
+
+  // Section visibility toggles
+  const [visibleSections, setVisibleSections] = useState<string[]>(['docs', 'tasks', 'snippets', 'media']);
 
   // Derived filtering (hooks must run before any early return)
   const q = search.trim().toLowerCase();
@@ -68,6 +74,7 @@ export default function ProjectDetail() {
   const filteredDocs = useMemo(() => docs.filter(d => hasTag(d.tags) && (matchesQ(d.title) || matchesQ(d.content || ''))), [docs, q, tagFilter]);
   const filteredTasks = useMemo(() => tasks.filter(t => hasTag(t.tags) && (matchesQ(t.title) || matchesQ(t.description || ''))), [tasks, q, tagFilter]);
   const filteredSnippets = useMemo(() => snippets.filter(s => hasTag(s.tags) && (matchesQ(s.title) || matchesQ(s.code || ''))), [snippets, q, tagFilter]);
+  const filteredMedia = useMemo(() => media.filter(m => matchesQ(m.title)), [media, q]);
   const allProjectTags = useMemo(() => {
     const s = new Set<string>();
     [...docs, ...tasks, ...snippets].forEach(item => (item.tags || []).forEach(t => s.add(t)));
@@ -147,6 +154,9 @@ export default function ProjectDetail() {
           <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground">
             <Code2 className="h-3 w-3 text-success" /> {snippets.length} {snippets.length === 1 ? 'snippet' : 'snippets'}
           </span>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground">
+            <Image className="h-3 w-3 text-primary" /> {media.length} {media.length === 1 ? 'media' : 'media'}
+          </span>
           {tasks.length > 0 && (
             <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground">
               <CheckCircle2 className="h-3 w-3 text-success" /> {percent}% done
@@ -166,8 +176,8 @@ export default function ProjectDetail() {
         )}
 
         {/* Search + tag filter within project */}
-        {(docs.length + tasks.length + snippets.length > 0) && (
-          <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-center">
+        {(docs.length + tasks.length + snippets.length + media.length > 0) && (
+          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input placeholder="Search this project..." value={search} onChange={e => setSearch(e.target.value)} className="bg-secondary border-border pl-9" />
@@ -192,124 +202,191 @@ export default function ProjectDetail() {
           </div>
         )}
 
+        {/* Section visibility toggles */}
+        <div className="mb-6 flex flex-wrap items-center gap-2">
+          <span className="text-xs text-muted-foreground mr-1">Show:</span>
+          <ToggleGroup type="multiple" value={visibleSections} onValueChange={setVisibleSections} className="flex flex-wrap gap-1.5">
+            <ToggleGroupItem value="docs" className="data-[state=on]:bg-info/15 data-[state=on]:text-info data-[state=on]:border-info/30 border border-border bg-card px-3 py-1 text-xs rounded-full transition-colors flex items-center gap-1.5">
+              <FileText className="h-3 w-3" /> Documents
+            </ToggleGroupItem>
+            <ToggleGroupItem value="tasks" className="data-[state=on]:bg-warning/15 data-[state=on]:text-warning data-[state=on]:border-warning/30 border border-border bg-card px-3 py-1 text-xs rounded-full transition-colors flex items-center gap-1.5">
+              <ListTodo className="h-3 w-3" /> Tasks
+            </ToggleGroupItem>
+            <ToggleGroupItem value="snippets" className="data-[state=on]:bg-success/15 data-[state=on]:text-success data-[state=on]:border-success/30 border border-border bg-card px-3 py-1 text-xs rounded-full transition-colors flex items-center gap-1.5">
+              <Code2 className="h-3 w-3" /> Snippets
+            </ToggleGroupItem>
+            <ToggleGroupItem value="media" className="data-[state=on]:bg-primary/15 data-[state=on]:text-primary data-[state=on]:border-primary/30 border border-border bg-card px-3 py-1 text-xs rounded-full transition-colors flex items-center gap-1.5">
+              <Image className="h-3 w-3" /> Media
+            </ToggleGroupItem>
+          </ToggleGroup>
+        </div>
+
         <hr className="my-6 border-border" />
 
         {/* Documents section */}
-        <div className="mb-8">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="flex items-center gap-2 text-lg font-semibold"><FileText className="h-5 w-5 text-info" /> Documents</h2>
-            <Button size="sm" variant="ghost" onClick={openDocCreate} className="gap-1 text-primary hover:text-primary"><Plus className="h-3.5 w-3.5" /> Add doc</Button>
-          </div>
-          {loadingDocs ? <Skeleton className="h-16 w-full" /> : docs.length === 0 ? (
-            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-10 text-center">
-              <FileText className="mb-2 h-6 w-6 text-muted-foreground" />
-              <p className="mb-3 text-sm text-muted-foreground">No documents yet — capture a runbook, install guide, or troubleshooting note.</p>
-              <Button size="sm" onClick={openDocCreate} className="gap-1"><Plus className="h-3.5 w-3.5" /> New document</Button>
+        {visibleSections.includes('docs') && (
+          <div className="mb-8">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="flex items-center gap-2 text-lg font-semibold"><FileText className="h-5 w-5 text-info" /> Documents</h2>
+              <Button size="sm" variant="ghost" onClick={openDocCreate} className="gap-1 text-primary hover:text-primary"><Plus className="h-3.5 w-3.5" /> Add doc</Button>
             </div>
-          ) : filteredDocs.length === 0 ? (
-            <p className="text-sm text-muted-foreground italic">No documents match your filter.</p>
-          ) : (
-            <div className="space-y-3">
-              {filteredDocs.map(doc => (
-                <div key={doc.id} className="group rounded-xl border border-border bg-card p-4 hover:border-info/30 transition-colors cursor-pointer" onClick={() => setViewDoc(doc)}>
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <h3 className="font-semibold text-foreground truncate">{doc.title}</h3>
-                      <p className="mt-1 line-clamp-2 text-sm text-muted-foreground break-words">{doc.content || 'Empty document'}</p>
-                      {(doc.tags?.length || doc.source) && (
-                        <div className="mt-2 flex flex-wrap items-center gap-1">
-                          {doc.source && doc.source !== 'manual' && <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">{doc.source}</span>}
-                          {(doc.tags || []).map(t => <span key={t} className="rounded bg-secondary px-1.5 py-0.5 text-[10px] text-muted-foreground">#{t}</span>)}
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                      <button onClick={(e) => { e.stopPropagation(); openDocEdit(doc); }} className="rounded-md p-1.5 hover:bg-secondary text-muted-foreground hover:text-foreground"><Pencil className="h-3.5 w-3.5" /></button>
-                      <button onClick={(e) => { e.stopPropagation(); deleteDoc(doc.id); }} className="rounded-md p-1.5 hover:bg-destructive/20 text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
+            {loadingDocs ? <Skeleton className="h-16 w-full" /> : docs.length === 0 ? (
+              <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-10 text-center">
+                <FileText className="mb-2 h-6 w-6 text-muted-foreground" />
+                <p className="mb-3 text-sm text-muted-foreground">No documents yet — capture a runbook, install guide, or troubleshooting note.</p>
+                <Button size="sm" onClick={openDocCreate} className="gap-1"><Plus className="h-3.5 w-3.5" /> New document</Button>
+              </div>
+            ) : filteredDocs.length === 0 ? (
+              <p className="text-sm text-muted-foreground italic">No documents match your filter.</p>
+            ) : (
+              <div className="space-y-3">
+                {filteredDocs.map(doc => (
+                  <div key={doc.id} className="group rounded-xl border border-border bg-card p-4 hover:border-info/30 transition-colors cursor-pointer" onClick={() => setViewDoc(doc)}>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <h3 className="font-semibold text-foreground truncate">{doc.title}</h3>
+                        <p className="mt-1 line-clamp-2 text-sm text-muted-foreground break-words">{doc.content || 'Empty document'}</p>
+                        {(doc.tags?.length || doc.source) && (
+                          <div className="mt-2 flex flex-wrap items-center gap-1">
+                            {doc.source && doc.source !== 'manual' && <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">{doc.source}</span>}
+                            {(doc.tags || []).map(t => <span key={t} className="rounded bg-secondary px-1.5 py-0.5 text-[10px] text-muted-foreground">#{t}</span>)}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                        <button onClick={(e) => { e.stopPropagation(); openDocEdit(doc); }} className="rounded-md p-1.5 hover:bg-secondary text-muted-foreground hover:text-foreground"><Pencil className="h-3.5 w-3.5" /></button>
+                        <button onClick={(e) => { e.stopPropagation(); deleteDoc(doc.id); }} className="rounded-md p-1.5 hover:bg-destructive/20 text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Tasks section */}
-        <div className="mb-8">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="flex items-center gap-2 text-lg font-semibold"><ListTodo className="h-5 w-5 text-warning" /> Tasks</h2>
-            <Button size="sm" variant="ghost" onClick={openTaskCreate} className="gap-1 text-primary hover:text-primary"><Plus className="h-3.5 w-3.5" /> Add task</Button>
+        {visibleSections.includes('tasks') && (
+          <div className="mb-8">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="flex items-center gap-2 text-lg font-semibold"><ListTodo className="h-5 w-5 text-warning" /> Tasks</h2>
+              <Button size="sm" variant="ghost" onClick={openTaskCreate} className="gap-1 text-primary hover:text-primary"><Plus className="h-3.5 w-3.5" /> Add task</Button>
+            </div>
+            {loadingTasks ? <Skeleton className="h-16 w-full" /> : tasks.length === 0 ? (
+              <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-10 text-center">
+                <ListTodo className="mb-2 h-6 w-6 text-muted-foreground" />
+                <p className="mb-3 text-sm text-muted-foreground">No tasks yet — track what needs doing for this project.</p>
+                <Button size="sm" onClick={openTaskCreate} className="gap-1"><Plus className="h-3.5 w-3.5" /> New task</Button>
+              </div>
+            ) : filteredTasks.length === 0 ? (
+              <p className="text-sm text-muted-foreground italic">No tasks match your filter.</p>
+            ) : (
+              <div className="space-y-2">
+                {filteredTasks.map(task => {
+                  const StatusIcon = STATUS_ICONS[task.status].icon;
+                  return (
+                    <div key={task.id} className="group flex items-center gap-3 rounded-lg border border-border bg-card p-3 hover:border-warning/30 transition-colors cursor-pointer" onClick={() => setViewTask(task)}>
+                      <button onClick={(e) => { e.stopPropagation(); cycleTaskStatus(task); }} title="Cycle status">
+                        <StatusIcon className={cn('h-4 w-4', STATUS_ICONS[task.status].className)} />
+                      </button>
+                      <div className="min-w-0 flex-1">
+                        <p className={cn("text-sm font-medium text-foreground truncate", task.status === 'DONE' && 'line-through text-muted-foreground')}>{task.title}</p>
+                        {task.description && <p className="text-xs text-muted-foreground line-clamp-1 break-words">{task.description}</p>}
+                      </div>
+                      <span className={cn('rounded px-1.5 py-0.5 text-[10px] font-bold shrink-0', PRIORITY_COLORS[task.priority])}>{task.priority}</span>
+                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                        <button onClick={(e) => { e.stopPropagation(); openTaskEdit(task); }} className="rounded-md p-1.5 hover:bg-secondary text-muted-foreground hover:text-foreground"><Pencil className="h-3.5 w-3.5" /></button>
+                        <button onClick={(e) => { e.stopPropagation(); deleteTask(task.id); }} className="rounded-md p-1.5 hover:bg-destructive/20 text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
-          {loadingTasks ? <Skeleton className="h-16 w-full" /> : tasks.length === 0 ? (
-            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-10 text-center">
-              <ListTodo className="mb-2 h-6 w-6 text-muted-foreground" />
-              <p className="mb-3 text-sm text-muted-foreground">No tasks yet — track what needs doing for this project.</p>
-              <Button size="sm" onClick={openTaskCreate} className="gap-1"><Plus className="h-3.5 w-3.5" /> New task</Button>
-            </div>
-          ) : filteredTasks.length === 0 ? (
-            <p className="text-sm text-muted-foreground italic">No tasks match your filter.</p>
-          ) : (
-            <div className="space-y-2">
-              {filteredTasks.map(task => {
-                const StatusIcon = STATUS_ICONS[task.status].icon;
-                return (
-                  <div key={task.id} className="group flex items-center gap-3 rounded-lg border border-border bg-card p-3 hover:border-warning/30 transition-colors cursor-pointer" onClick={() => setViewTask(task)}>
-                    <button onClick={(e) => { e.stopPropagation(); cycleTaskStatus(task); }} title="Cycle status">
-                      <StatusIcon className={cn('h-4 w-4', STATUS_ICONS[task.status].className)} />
-                    </button>
-                    <div className="min-w-0 flex-1">
-                      <p className={cn("text-sm font-medium text-foreground truncate", task.status === 'DONE' && 'line-through text-muted-foreground')}>{task.title}</p>
-                      {task.description && <p className="text-xs text-muted-foreground line-clamp-1 break-words">{task.description}</p>}
-                    </div>
-                    <span className={cn('rounded px-1.5 py-0.5 text-[10px] font-bold shrink-0', PRIORITY_COLORS[task.priority])}>{task.priority}</span>
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                      <button onClick={(e) => { e.stopPropagation(); openTaskEdit(task); }} className="rounded-md p-1.5 hover:bg-secondary text-muted-foreground hover:text-foreground"><Pencil className="h-3.5 w-3.5" /></button>
-                      <button onClick={(e) => { e.stopPropagation(); deleteTask(task.id); }} className="rounded-md p-1.5 hover:bg-destructive/20 text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
+        )}
 
         {/* Snippets section */}
-        <div>
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="flex items-center gap-2 text-lg font-semibold"><Code2 className="h-5 w-5 text-success" /> Snippets</h2>
-            <Button size="sm" variant="ghost" onClick={openSnipCreate} className="gap-1 text-primary hover:text-primary"><Plus className="h-3.5 w-3.5" /> Add snippet</Button>
-          </div>
-          {loadingSnippets ? <Skeleton className="h-16 w-full" /> : snippets.length === 0 ? (
-            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-10 text-center">
-              <Code2 className="mb-2 h-6 w-6 text-muted-foreground" />
-              <p className="mb-3 text-sm text-muted-foreground">No snippets yet — save commands, configs, or scripts you reuse.</p>
-              <Button size="sm" onClick={openSnipCreate} className="gap-1"><Plus className="h-3.5 w-3.5" /> New snippet</Button>
+        {visibleSections.includes('snippets') && (
+          <div className="mb-8">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="flex items-center gap-2 text-lg font-semibold"><Code2 className="h-5 w-5 text-success" /> Snippets</h2>
+              <Button size="sm" variant="ghost" onClick={openSnipCreate} className="gap-1 text-primary hover:text-primary"><Plus className="h-3.5 w-3.5" /> Add snippet</Button>
             </div>
-          ) : filteredSnippets.length === 0 ? (
-            <p className="text-sm text-muted-foreground italic">No snippets match your filter.</p>
-          ) : (
-            <div className="space-y-3">
-              {filteredSnippets.map(snip => (
-                <div key={snip.id} className="group rounded-xl border border-border bg-card p-4 hover:border-success/30 transition-colors cursor-pointer" onClick={() => setViewSnippet(snip)}>
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex min-w-0 items-center gap-2">
-                      <h3 className="font-semibold text-foreground truncate">{snip.title}</h3>
-                      <span className={`shrink-0 rounded px-2 py-0.5 text-xs font-bold ${LANG_COLORS[snip.language]}`}>{snip.language}</span>
+            {loadingSnippets ? <Skeleton className="h-16 w-full" /> : snippets.length === 0 ? (
+              <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-10 text-center">
+                <Code2 className="mb-2 h-6 w-6 text-muted-foreground" />
+                <p className="mb-3 text-sm text-muted-foreground">No snippets yet — save commands, configs, or scripts you reuse.</p>
+                <Button size="sm" onClick={openSnipCreate} className="gap-1"><Plus className="h-3.5 w-3.5" /> New snippet</Button>
+              </div>
+            ) : filteredSnippets.length === 0 ? (
+              <p className="text-sm text-muted-foreground italic">No snippets match your filter.</p>
+            ) : (
+              <div className="space-y-3">
+                {filteredSnippets.map(snip => (
+                  <div key={snip.id} className="group rounded-xl border border-border bg-card p-4 hover:border-success/30 transition-colors cursor-pointer" onClick={() => setViewSnippet(snip)}>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <h3 className="font-semibold text-foreground truncate">{snip.title}</h3>
+                        <span className={`shrink-0 rounded px-2 py-0.5 text-xs font-bold ${LANG_COLORS[snip.language]}`}>{snip.language}</span>
+                      </div>
+                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                        <button onClick={(e) => { e.stopPropagation(); handleCopy(snip.id, snip.code); }} className="rounded-md p-1.5 hover:bg-secondary text-muted-foreground hover:text-foreground" title="Copy">
+                          {copiedId === snip.id ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
+                        </button>
+                        <button onClick={(e) => { e.stopPropagation(); openSnipEdit(snip); }} className="rounded-md p-1.5 hover:bg-secondary text-muted-foreground hover:text-foreground"><Pencil className="h-3.5 w-3.5" /></button>
+                        <button onClick={(e) => { e.stopPropagation(); deleteSnippet(snip.id); }} className="rounded-md p-1.5 hover:bg-destructive/20 text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
+                      </div>
                     </div>
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                      <button onClick={(e) => { e.stopPropagation(); handleCopy(snip.id, snip.code); }} className="rounded-md p-1.5 hover:bg-secondary text-muted-foreground hover:text-foreground" title="Copy">
-                        {copiedId === snip.id ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
-                      </button>
-                      <button onClick={(e) => { e.stopPropagation(); openSnipEdit(snip); }} className="rounded-md p-1.5 hover:bg-secondary text-muted-foreground hover:text-foreground"><Pencil className="h-3.5 w-3.5" /></button>
-                      <button onClick={(e) => { e.stopPropagation(); deleteSnippet(snip.id); }} className="rounded-md p-1.5 hover:bg-destructive/20 text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
+                    <pre className="mt-2 rounded-md bg-black/80 px-3 py-2 text-xs font-mono text-green-400 max-h-10 overflow-hidden whitespace-pre-wrap break-all">{snip.code}</pre>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Media section */}
+        {visibleSections.includes('media') && (
+          <div>
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="flex items-center gap-2 text-lg font-semibold"><Image className="h-5 w-5 text-primary" /> Media</h2>
+            </div>
+            {loadingMedia ? <Skeleton className="h-16 w-full" /> : media.length === 0 ? (
+              <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-10 text-center">
+                <Image className="mb-2 h-6 w-6 text-muted-foreground" />
+                <p className="mb-3 text-sm text-muted-foreground">No media yet — upload screenshots, diagrams, or reference images.</p>
+              </div>
+            ) : filteredMedia.length === 0 ? (
+              <p className="text-sm text-muted-foreground italic">No media match your filter.</p>
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {filteredMedia.map(item => (
+                  <div key={item.id} className="group relative rounded-xl border border-border bg-card overflow-hidden hover:border-primary/30 transition-colors">
+                    <button onClick={() => setViewMedia(item)} className="block w-full">
+                      <div className="aspect-video bg-background flex items-center justify-center overflow-hidden">
+                        {item.type.startsWith('image/') ? (
+                          <img src={item.url} alt={item.title} className="h-full w-full object-cover" />
+                        ) : (
+                          <Image className="h-10 w-10 text-muted-foreground" />
+                        )}
+                      </div>
+                    </button>
+                    <div className="p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm font-medium text-foreground truncate">{item.title}</p>
+                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                          <button onClick={(e) => { e.stopPropagation(); setViewMedia(item); }} className="rounded-md p-1.5 hover:bg-secondary text-muted-foreground hover:text-foreground" title="View"><Eye className="h-3.5 w-3.5" /></button>
+                          <button onClick={(e) => { e.stopPropagation(); mediaStore.delete(item.id).then(refreshMedia); }} className="rounded-md p-1.5 hover:bg-destructive/20 text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  <pre className="mt-2 rounded-md bg-black/80 px-3 py-2 text-xs font-mono text-green-400 max-h-10 overflow-hidden whitespace-pre-wrap break-all">{snip.code}</pre>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
 
         {/* View Document Dialog */}
@@ -412,6 +489,18 @@ export default function ProjectDetail() {
                 <Trash2 className="h-3.5 w-3.5 mr-1.5" /> Delete
               </Button>
             </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Media Lightbox */}
+        <Dialog open={!!viewMedia} onOpenChange={(open) => !open && setViewMedia(null)}>
+          <DialogContent className="bg-card border-border max-w-3xl">
+            {viewMedia && (
+              <>
+                <DialogHeader><DialogTitle>{viewMedia.title}</DialogTitle></DialogHeader>
+                <img src={viewMedia.url} alt={viewMedia.title} className="w-full rounded-lg" />
+              </>
+            )}
           </DialogContent>
         </Dialog>
 
