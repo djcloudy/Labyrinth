@@ -525,7 +525,7 @@ export default function AIHubPage() {
             </Badge>
             <div className="flex items-center gap-2">
               <Select value={provider} onValueChange={(v) => setProvider(v as Provider)}>
-                <SelectTrigger className="w-40 bg-secondary border-border h-8 text-xs">
+                <SelectTrigger className="w-32 bg-secondary border-border h-8 text-xs">
                   <SelectValue placeholder={modelsLoading ? 'Loading models...' : provider === 'ollama' ? 'No pulled models found' : 'Select model'} />
                 </SelectTrigger>
                 <SelectContent className="bg-card border-border">
