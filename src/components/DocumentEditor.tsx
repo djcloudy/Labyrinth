@@ -105,15 +105,17 @@ export default function DocumentEditor({ open, onOpenChange, editing, projects, 
             </Button>
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            <Select value={projectId} onValueChange={setProjectId}>
-              <SelectTrigger className="h-8 w-48 bg-secondary border-border text-xs">
-                <SelectValue placeholder="Link to project" />
-              </SelectTrigger>
-              <SelectContent className="bg-card border-border">
-                <SelectItem value="none">No project</SelectItem>
-                {projects.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            {forcedProjectId === undefined && (
+              <Select value={projectId} onValueChange={setProjectId}>
+                <SelectTrigger className="h-8 w-48 bg-secondary border-border text-xs">
+                  <SelectValue placeholder="Link to project" />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-border">
+                  <SelectItem value="none">No project</SelectItem>
+                  {projects.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            )}
             <Select value="" onValueChange={applyTemplate}>
               <SelectTrigger className="h-8 w-44 bg-secondary border-border text-xs">
                 <Sparkles className="h-3 w-3 mr-1" />
