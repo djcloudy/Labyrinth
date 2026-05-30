@@ -85,10 +85,22 @@ function deriveTitle(messages: Message[]): string {
 }
 
 export default function AIHubPage() {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [conversations, setConversations] = useState<Conversation[]>(loadConversations);
+  const [activeId, setActiveId] = useState<string>(() => {
+    const stored = localStorage.getItem(ACTIVE_CONVERSATION_KEY);
+    const list = loadConversations();
+    if (stored && list.some(c => c.id === stored)) return stored;
+    return list[0]?.id ?? '';
+  });
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+
+  const active = useMemo(() => conversations.find(c => c.id === activeId), [conversations, activeId]);
+  const messages = active?.messages ?? [];
+  const provider = active?.provider ?? 'openai';
+  const model = active?.model ?? PROVIDER_MODELS.openai[0];
+
   const [input, setInput] = useState('');
-  const [provider, setProvider] = useState<Provider>('openai');
-  const [model, setModel] = useState(PROVIDER_MODELS.openai[0]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -97,6 +109,72 @@ export default function AIHubPage() {
   const { status: ollamaStatus, recheck: recheckOllama } = useOllamaStatus(provider, settings.ollamaUrl);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => { persistConversations(conversations); }, [conversations]);
+  useEffect(() => { if (activeId) localStorage.setItem(ACTIVE_CONVERSATION_KEY, activeId); }, [activeId]);
+
+  const newConversation = useCallback(() => {
+    const now = new Date().toISOString();
+    const conv: Conversation = {
+      id: crypto.randomUUID(),
+      title: 'New chat',
+      messages: [],
+      provider: provider ?? 'openai',
+      model: model ?? PROVIDER_MODELS.openai[0],
+      createdAt: now,
+      updatedAt: now,
+    };
+    setConversations(prev => [conv, ...prev]);
+    setActiveId(conv.id);
+    return conv;
+  }, [provider, model]);
+
+  useEffect(() => {
+    if (conversations.length === 0) newConversation();
+    else if (!activeId) setActiveId(conversations[0].id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const updateActive = useCallback((patch: Partial<Conversation> | ((c: Conversation) => Partial<Conversation>)) => {
+    setConversations(prev => prev.map(c => {
+      if (c.id !== activeId) return c;
+      const p = typeof patch === 'function' ? patch(c) : patch;
+      return { ...c, ...p, updatedAt: new Date().toISOString() };
+    }));
+  }, [activeId]);
+
+  const setMessages = useCallback((updater: Message[] | ((prev: Message[]) => Message[])) => {
+    updateActive(c => {
+      const next = typeof updater === 'function' ? (updater as (p: Message[]) => Message[])(c.messages) : updater;
+      const titleNeedsUpdate = (c.title === 'New chat' || !c.title) && next.some(m => m.role === 'user');
+      return { messages: next, ...(titleNeedsUpdate ? { title: deriveTitle(next) } : {}) };
+    });
+  }, [updateActive]);
+
+  const setProvider = useCallback((p: Provider) => updateActive({ provider: p }), [updateActive]);
+  const setModel = useCallback((m: string) => updateActive({ model: m }), [updateActive]);
+
+  const deleteConversation = (id: string) => {
+    setConversations(prev => {
+      const next = prev.filter(c => c.id !== id);
+      if (id === activeId) {
+        if (next.length === 0) {
+          const now = new Date().toISOString();
+          const conv: Conversation = { id: crypto.randomUUID(), title: 'New chat', messages: [], provider: 'openai', model: PROVIDER_MODELS.openai[0], createdAt: now, updatedAt: now };
+          setActiveId(conv.id);
+          return [conv];
+        }
+        setActiveId(next[0].id);
+      }
+      return next;
+    });
+  };
+
+  const commitRename = (id: string) => {
+    const t = renameValue.trim();
+    if (t) setConversations(prev => prev.map(c => c.id === id ? { ...c, title: t } : c));
+    setRenamingId(null);
+  };
 
   // Context attachment state
   const [attachments, setAttachments] = useState<Attachment[]>([]);
