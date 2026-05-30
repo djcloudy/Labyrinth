@@ -1,19 +1,19 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Pencil, Trash2, FileText, Code2, ListTodo, Circle, Clock, CheckCircle2, Copy, Check, ChevronDown, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Pencil, Trash2, FileText, Code2, ListTodo, Circle, Clock, CheckCircle2, Copy, Check } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { useState, useEffect, useCallback } from 'react';
 import AppLayout from '@/components/AppLayout';
+import DocumentEditor from '@/components/DocumentEditor';
+import SnippetEditor from '@/components/SnippetEditor';
+import TaskEditor from '@/components/TaskEditor';
 import { projectStore, documentStore, snippetStore, taskStore } from '@/lib/store';
 import { Project, Document, Snippet, SnippetLanguage, Task, TaskStatus, TaskPriority } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useStore } from '@/hooks/use-store';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
@@ -30,55 +30,59 @@ export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [project, setProject] = useState<Project | null | undefined>(undefined);
+  const [projectsList, setProjectsList] = useState<Project[]>([]);
 
   useEffect(() => {
     projectStore.getById(id!).then(p => setProject(p ?? null));
+    projectStore.getAll().then(setProjectsList);
   }, [id]);
 
   const { data: docs, loading: loadingDocs, refresh: refreshDocs } = useStore(useCallback(() => documentStore.getByProject(id!), [id]));
   const { data: snippets, loading: loadingSnippets, refresh: refreshSnippets } = useStore(useCallback(() => snippetStore.getByProject(id!), [id]));
   const { data: tasks, loading: loadingTasks, refresh: refreshTasks } = useStore(useCallback(() => taskStore.getByProject(id!), [id]));
 
-  // Edit dialogs
-  const [docDialog, setDocDialog] = useState(false);
-  const [snippetDialog, setSnippetDialog] = useState(false);
-  const [taskDialog, setTaskDialog] = useState(false);
+  // Editor state
+  const [docEditorOpen, setDocEditorOpen] = useState(false);
   const [editingDoc, setEditingDoc] = useState<Document | null>(null);
+  const [snipEditorOpen, setSnipEditorOpen] = useState(false);
   const [editingSnippet, setEditingSnippet] = useState<Snippet | null>(null);
+  const [taskEditorOpen, setTaskEditorOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
 
   // View dialogs
   const [viewDoc, setViewDoc] = useState<Document | null>(null);
   const [viewSnippet, setViewSnippet] = useState<Snippet | null>(null);
   const [viewTask, setViewTask] = useState<Task | null>(null);
-
-  const [docTitle, setDocTitle] = useState('');
-  const [docContent, setDocContent] = useState('');
-  const [snipTitle, setSnipTitle] = useState('');
-  const [snipCode, setSnipCode] = useState('');
-  const [snipLang, setSnipLang] = useState<SnippetLanguage>('BASH');
-  const [taskTitle, setTaskTitle] = useState('');
-  const [taskDesc, setTaskDesc] = useState('');
-  const [taskStatus, setTaskStatus] = useState<TaskStatus>('TODO');
-  const [taskPriority, setTaskPriority] = useState<TaskPriority>('MEDIUM');
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   if (project === undefined) return <AppLayout><Skeleton className="h-8 w-48" /></AppLayout>;
   if (project === null) return <AppLayout><p className="text-muted-foreground">Project not found.</p></AppLayout>;
 
-  const openDocCreate = () => { setEditingDoc(null); setDocTitle(''); setDocContent(''); setDocDialog(true); };
-  const openDocEdit = (d: Document) => { setEditingDoc(d); setDocTitle(d.title); setDocContent(d.content); setDocDialog(true); };
-  const saveDoc = async () => { if (!docTitle.trim()) return; if (editingDoc) await documentStore.update(editingDoc.id, { title: docTitle, content: docContent }); else await documentStore.create({ title: docTitle, content: docContent, projectId: id! }); setDocDialog(false); refreshDocs(); };
+  const openDocCreate = () => { setEditingDoc(null); setDocEditorOpen(true); };
+  const openDocEdit = (d: Document) => { setEditingDoc(d); setDocEditorOpen(true); };
+  const saveDoc = async (data: { title: string; content: string; projectId: string | null }) => {
+    if (editingDoc) await documentStore.update(editingDoc.id, data);
+    else await documentStore.create(data);
+    refreshDocs();
+  };
   const deleteDoc = async (docId: string) => { await documentStore.delete(docId); refreshDocs(); setViewDoc(null); };
 
-  const openSnipCreate = () => { setEditingSnippet(null); setSnipTitle(''); setSnipCode(''); setSnipLang('BASH'); setSnippetDialog(true); };
-  const openSnipEdit = (s: Snippet) => { setEditingSnippet(s); setSnipTitle(s.title); setSnipCode(s.code); setSnipLang(s.language); setSnippetDialog(true); };
-  const saveSnippet = async () => { if (!snipTitle.trim()) return; if (editingSnippet) await snippetStore.update(editingSnippet.id, { title: snipTitle, code: snipCode, language: snipLang }); else await snippetStore.create({ title: snipTitle, code: snipCode, language: snipLang, projectId: id! }); setSnippetDialog(false); refreshSnippets(); };
+  const openSnipCreate = () => { setEditingSnippet(null); setSnipEditorOpen(true); };
+  const openSnipEdit = (s: Snippet) => { setEditingSnippet(s); setSnipEditorOpen(true); };
+  const saveSnippet = async (data: { title: string; code: string; language: SnippetLanguage; projectId: string | null }) => {
+    if (editingSnippet) await snippetStore.update(editingSnippet.id, data);
+    else await snippetStore.create(data);
+    refreshSnippets();
+  };
   const deleteSnippet = async (snipId: string) => { await snippetStore.delete(snipId); refreshSnippets(); setViewSnippet(null); };
 
-  const openTaskCreate = () => { setEditingTask(null); setTaskTitle(''); setTaskDesc(''); setTaskStatus('TODO'); setTaskPriority('MEDIUM'); setTaskDialog(true); };
-  const openTaskEdit = (t: Task) => { setEditingTask(t); setTaskTitle(t.title); setTaskDesc(t.description); setTaskStatus(t.status); setTaskPriority(t.priority); setTaskDialog(true); };
-  const saveTask = async () => { if (!taskTitle.trim()) return; if (editingTask) await taskStore.update(editingTask.id, { title: taskTitle, description: taskDesc, status: taskStatus, priority: taskPriority }); else await taskStore.create({ title: taskTitle, description: taskDesc, status: taskStatus, priority: taskPriority, projectId: id! }); setTaskDialog(false); refreshTasks(); };
+  const openTaskCreate = () => { setEditingTask(null); setTaskEditorOpen(true); };
+  const openTaskEdit = (t: Task) => { setEditingTask(t); setTaskEditorOpen(true); };
+  const saveTask = async (data: Partial<Task>) => {
+    if (editingTask) await taskStore.update(editingTask.id, data);
+    else await taskStore.create(data as Omit<Task, 'id' | 'createdAt' | 'updatedAt'>);
+    refreshTasks();
+  };
   const deleteTask = async (taskId: string) => { await taskStore.delete(taskId); refreshTasks(); setViewTask(null); };
   const cycleTaskStatus = async (task: Task) => { const next: Record<TaskStatus, TaskStatus> = { TODO: 'IN_PROGRESS', IN_PROGRESS: 'DONE', DONE: 'TODO' }; await taskStore.update(task.id, { status: next[task.status] }); refreshTasks(); };
 
@@ -314,67 +318,34 @@ export default function ProjectDetail() {
           </DialogContent>
         </Dialog>
 
-        {/* Doc Edit Dialog */}
-        <Dialog open={docDialog} onOpenChange={setDocDialog}>
-          <DialogContent className="bg-card border-border">
-            <DialogHeader><DialogTitle>{editingDoc ? 'Edit Document' : 'New Document'}</DialogTitle></DialogHeader>
-            <div className="space-y-4">
-              <Input placeholder="Document title" value={docTitle} onChange={e => setDocTitle(e.target.value)} className="bg-secondary border-border" />
-              <Textarea placeholder="Content (markdown, links, notes...)" value={docContent} onChange={e => setDocContent(e.target.value)} rows={6} className="bg-secondary border-border font-mono text-sm" />
-              <Button onClick={saveDoc} className="w-full">{editingDoc ? 'Save' : 'Create'}</Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-
-        {/* Snippet Edit Dialog */}
-        <Dialog open={snippetDialog} onOpenChange={setSnippetDialog}>
-          <DialogContent className="bg-card border-border">
-            <DialogHeader><DialogTitle>{editingSnippet ? 'Edit Snippet' : 'New Snippet'}</DialogTitle></DialogHeader>
-            <div className="space-y-4">
-              <Input placeholder="Snippet title" value={snipTitle} onChange={e => setSnipTitle(e.target.value)} className="bg-secondary border-border" />
-              <Select value={snipLang} onValueChange={(v) => setSnipLang(v as SnippetLanguage)}>
-                <SelectTrigger className="bg-secondary border-border"><SelectValue /></SelectTrigger>
-                <SelectContent className="bg-card border-border">
-                  <SelectItem value="BASH">BASH</SelectItem>
-                  <SelectItem value="YAML">YAML</SelectItem>
-                  <SelectItem value="PYTHON">PYTHON</SelectItem>
-                </SelectContent>
-              </Select>
-              <Textarea placeholder="Paste your code here..." value={snipCode} onChange={e => setSnipCode(e.target.value)} rows={8} className="bg-secondary border-border font-mono text-sm" />
-              <Button onClick={saveSnippet} className="w-full">{editingSnippet ? 'Save' : 'Create'}</Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-
-        {/* Task Edit Dialog */}
-        <Dialog open={taskDialog} onOpenChange={setTaskDialog}>
-          <DialogContent className="bg-card border-border">
-            <DialogHeader><DialogTitle>{editingTask ? 'Edit Task' : 'New Task'}</DialogTitle></DialogHeader>
-            <div className="space-y-4">
-              <Input placeholder="Task title" value={taskTitle} onChange={e => setTaskTitle(e.target.value)} className="bg-secondary border-border" />
-              <Textarea placeholder="Description (optional)" value={taskDesc} onChange={e => setTaskDesc(e.target.value)} rows={3} className="bg-secondary border-border text-sm" />
-              <div className="grid grid-cols-2 gap-3">
-                <Select value={taskStatus} onValueChange={v => setTaskStatus(v as TaskStatus)}>
-                  <SelectTrigger className="bg-secondary border-border"><SelectValue /></SelectTrigger>
-                  <SelectContent className="bg-card border-border">
-                    <SelectItem value="TODO">To Do</SelectItem>
-                    <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
-                    <SelectItem value="DONE">Done</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select value={taskPriority} onValueChange={v => setTaskPriority(v as TaskPriority)}>
-                  <SelectTrigger className="bg-secondary border-border"><SelectValue /></SelectTrigger>
-                  <SelectContent className="bg-card border-border">
-                    <SelectItem value="LOW">Low</SelectItem>
-                    <SelectItem value="MEDIUM">Medium</SelectItem>
-                    <SelectItem value="HIGH">High</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button onClick={saveTask} className="w-full">{editingTask ? 'Save' : 'Create'}</Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+        {/* Shared editors, pinned to this project */}
+        <DocumentEditor
+          open={docEditorOpen}
+          onOpenChange={setDocEditorOpen}
+          editing={editingDoc}
+          projects={projectsList}
+          forcedProjectId={id!}
+          onSave={saveDoc}
+          onRefresh={refreshDocs}
+        />
+        <SnippetEditor
+          open={snipEditorOpen}
+          onOpenChange={setSnipEditorOpen}
+          editing={editingSnippet}
+          projects={projectsList}
+          forcedProjectId={id!}
+          onSave={saveSnippet}
+          onRefresh={refreshSnippets}
+        />
+        <TaskEditor
+          open={taskEditorOpen}
+          onOpenChange={setTaskEditorOpen}
+          editing={editingTask}
+          projects={projectsList}
+          forcedProjectId={id!}
+          onSave={saveTask}
+          onRefresh={refreshTasks}
+        />
       </div>
     </AppLayout>
   );
