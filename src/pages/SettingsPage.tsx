@@ -236,6 +236,38 @@ export default function SettingsPage() {
             </div>
           </div>
 
+          {/* AI Conversations */}
+          <div className="rounded-xl border border-border bg-card p-6">
+            <h2 className="mb-1 text-lg font-semibold text-foreground flex items-center gap-2">
+              <MessageSquare className="h-5 w-5 text-primary" />
+              AI Conversations
+            </h2>
+            <p className="mb-4 text-sm text-muted-foreground">
+              Conversations are saved to {storageMode === 'disk' ? <code className="rounded bg-secondary px-1.5 py-0.5 text-foreground">{dataDir || 'the server data directory'}</code> : 'your browser (localStorage)'}.
+              {conversationCount !== null && <> You currently have <span className="font-semibold text-foreground">{conversationCount}</span> stored.</>}
+            </p>
+            <div className="flex flex-wrap items-end gap-3">
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Maximum conversations to keep</label>
+                <Input
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={retention.maxConversations}
+                  onChange={(e) => updateMaxConversations(Number(e.target.value))}
+                  className="w-32 bg-secondary border-border"
+                />
+              </div>
+              <Button onClick={pruneOldConversations} variant="outline" disabled={pruning}>
+                {pruning ? 'Cleaning up...' : 'Delete old conversations now'}
+              </Button>
+            </div>
+            <p className="mt-3 text-xs text-muted-foreground">
+              Cleanup keeps the most recently updated chats and removes the rest. It only runs when you click the button.
+            </p>
+          </div>
+
+
           {/* Data Management */}
           <div className="rounded-xl border border-border bg-card p-6">
             <h2 className="mb-1 text-lg font-semibold text-foreground">Data Management</h2>
