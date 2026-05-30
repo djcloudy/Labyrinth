@@ -120,7 +120,9 @@ app.get('/api/health', (req, res) => {
     dataDir: DATA_DIR,
     collections: VALID_COLLECTIONS,
     apiKeyRequired: !!API_KEY,
-    features: ['capture', 'revisions', 'audit', 'metadata'],
+    features: ['capture', 'revisions', 'audit', 'metadata', 'openapi'],
+    openapi: '/api/openapi.json',
+
   });
 });
 
