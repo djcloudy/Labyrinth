@@ -1,0 +1,29 @@
+[
+  {
+    "id": "7289b22d-8647-46e2-9ac8-c75d15ea01d2",
+    "timestamp": "2026-05-30T05:17:24.455Z",
+    "action": "capture",
+    "collection": "documents",
+    "source": "assistant",
+    "title": "Disk Usage Check Runbook",
+    "type": "document"
+  },
+  {
+    "id": "ad4c9fa2-1471-4643-b98e-2933dc15c6f3",
+    "timestamp": "2026-05-30T05:17:24.470Z",
+    "action": "capture",
+    "collection": "snippets",
+    "source": "assistant",
+    "title": "Disk usage triage commands",
+    "type": "snippet"
+  },
+  {
+    "id": "f3b06d42-5d7c-4663-bda4-e85f5bba0bc7",
+    "timestamp": "2026-05-30T05:17:24.488Z",
+    "action": "capture",
+    "collection": "tasks",
+    "source": "assistant",
+    "title": "Investigate disk usage on the backup volume",
+    "type": "task"
+  }
+]

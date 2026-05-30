@@ -418,116 +418,6 @@ app.get('/api/openapi.json', (req, res) => {
 
 
 
-// --- CRUD ---
-app.get('/api/:collection', validateCollection, (req, res) => {
-  res.json(readCollection(req.params.collection));
-});
-
-app.post('/api/:collection', validateCollection, (req, res) => {
-  const col = req.params.collection;
-  const items = readCollection(col);
-  const now = new Date().toISOString();
-  const source = req.body.source || 'manual';
-  const item = {
-    ...req.body,
-    id: crypto.randomUUID(),
-    createdAt: now,
-    source,
-    ...(col !== 'media' ? { updatedAt: now } : {}),
-  };
-  items.push(item);
-  writeCollection(col, items);
-  if (source !== 'manual') appendAudit({ action: 'create', collection: col, id: item.id, source, title: item.title });
-  res.status(201).json(item);
-});
-
-app.put('/api/:collection/:id', validateCollection, (req, res) => {
-  const col = req.params.collection;
-  const items = readCollection(col);
-  const idx = items.findIndex(i => i.id === req.params.id);
-  if (idx === -1) return res.status(404).json({ error: 'Not found' });
-  const prev = items[idx];
-
-  // Snapshot prior version for versioned collections if content-bearing fields change
-  if (VERSIONED_COLLECTIONS.has(col)) {
-    const tracked = ['title', 'content', 'code', 'description', 'language', 'status', 'priority', 'tags', 'dueDate', 'checklist'];
-    const changed = tracked.some(k => k in req.body && JSON.stringify(req.body[k]) !== JSON.stringify(prev[k]));
-    if (changed) {
-      appendRevision(col, prev.id, {
-        revisionId: crypto.randomUUID(),
-        timestamp: new Date().toISOString(),
-        updatedBy: req.body.updatedBy || prev.updatedBy || null,
-        source: req.body.source || prev.source || 'manual',
-        snapshot: prev,
-      });
-    }
-  }
-
-  items[idx] = { ...prev, ...req.body, id: req.params.id, updatedAt: new Date().toISOString() };
-  writeCollection(col, items);
-  if (req.body.source && req.body.source !== 'manual') {
-    appendAudit({ action: 'update', collection: col, id: req.params.id, source: req.body.source, title: items[idx].title });
-  }
-  res.json(items[idx]);
-});
-
-app.delete('/api/:collection/:id', validateCollection, (req, res) => {
-  const collection = req.params.collection;
-  let items = readCollection(collection);
-  const before = items.length;
-  const removed = items.find(i => i.id === req.params.id);
-  items = items.filter(i => i.id !== req.params.id);
-  if (items.length === before) return res.status(404).json({ error: 'Not found' });
-  writeCollection(collection, items);
-
-  if (collection === 'projects') {
-    ['documents', 'snippets', 'media'].forEach(col => {
-      const related = readCollection(col).map(item =>
-        item.projectId === req.params.id ? { ...item, projectId: null } : item
-      );
-      writeCollection(col, related);
-    });
-    writeCollection('tasks', readCollection('tasks').filter(t => t.projectId !== req.params.id));
-  }
-  if (removed?.source && removed.source !== 'manual') {
-    appendAudit({ action: 'delete', collection, id: req.params.id, source: removed.source, title: removed.title });
-  }
-  res.json({ success: true });
-});
-
-// --- Revisions ---
-app.get('/api/:collection/:id/revisions', validateCollection, (req, res) => {
-  if (!VERSIONED_COLLECTIONS.has(req.params.collection)) return res.json([]);
-  res.json(readRevisions(req.params.collection, req.params.id));
-});
-
-app.post('/api/:collection/:id/restore/:revisionId', validateCollection, (req, res) => {
-  const { collection, id, revisionId } = req.params;
-  if (!VERSIONED_COLLECTIONS.has(collection)) return res.status(400).json({ error: 'Not versioned' });
-  const revs = readRevisions(collection, id);
-  const rev = revs.find(r => r.revisionId === revisionId);
-  if (!rev) return res.status(404).json({ error: 'Revision not found' });
-  const items = readCollection(collection);
-  const idx = items.findIndex(i => i.id === id);
-  if (idx === -1) return res.status(404).json({ error: 'Item not found' });
-  appendRevision(collection, id, {
-    revisionId: crypto.randomUUID(),
-    timestamp: new Date().toISOString(),
-    updatedBy: 'restore',
-    source: 'manual',
-    snapshot: items[idx],
-  });
-  items[idx] = { ...rev.snapshot, id, updatedAt: new Date().toISOString() };
-  writeCollection(collection, items);
-  res.json(items[idx]);
-});
-
-// --- Audit log ---
-app.get('/api/audit', (req, res) => {
-  try { res.json(JSON.parse(fs.readFileSync(AUDIT_FILE, 'utf8'))); }
-  catch { res.json([]); }
-});
-
 // --- Capture (assistant-facing unified write endpoint) ---
 function detectCaptureType(text) {
   if (!text) return 'document';
@@ -641,6 +531,117 @@ app.post('/api/capture', requireApiKey, (req, res) => {
 
   res.status(201).json({ type, collection, item });
 });
+
+// --- Audit log ---
+app.get('/api/audit', (req, res) => {
+  try { res.json(JSON.parse(fs.readFileSync(AUDIT_FILE, 'utf8'))); }
+  catch { res.json([]); }
+});
+
+// --- CRUD ---
+app.get('/api/:collection', validateCollection, (req, res) => {
+  res.json(readCollection(req.params.collection));
+});
+
+app.post('/api/:collection', validateCollection, (req, res) => {
+  const col = req.params.collection;
+  const items = readCollection(col);
+  const now = new Date().toISOString();
+  const source = req.body.source || 'manual';
+  const item = {
+    ...req.body,
+    id: crypto.randomUUID(),
+    createdAt: now,
+    source,
+    ...(col !== 'media' ? { updatedAt: now } : {}),
+  };
+  items.push(item);
+  writeCollection(col, items);
+  if (source !== 'manual') appendAudit({ action: 'create', collection: col, id: item.id, source, title: item.title });
+  res.status(201).json(item);
+});
+
+app.put('/api/:collection/:id', validateCollection, (req, res) => {
+  const col = req.params.collection;
+  const items = readCollection(col);
+  const idx = items.findIndex(i => i.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'Not found' });
+  const prev = items[idx];
+
+  // Snapshot prior version for versioned collections if content-bearing fields change
+  if (VERSIONED_COLLECTIONS.has(col)) {
+    const tracked = ['title', 'content', 'code', 'description', 'language', 'status', 'priority', 'tags', 'dueDate', 'checklist'];
+    const changed = tracked.some(k => k in req.body && JSON.stringify(req.body[k]) !== JSON.stringify(prev[k]));
+    if (changed) {
+      appendRevision(col, prev.id, {
+        revisionId: crypto.randomUUID(),
+        timestamp: new Date().toISOString(),
+        updatedBy: req.body.updatedBy || prev.updatedBy || null,
+        source: req.body.source || prev.source || 'manual',
+        snapshot: prev,
+      });
+    }
+  }
+
+  items[idx] = { ...prev, ...req.body, id: req.params.id, updatedAt: new Date().toISOString() };
+  writeCollection(col, items);
+  if (req.body.source && req.body.source !== 'manual') {
+    appendAudit({ action: 'update', collection: col, id: req.params.id, source: req.body.source, title: items[idx].title });
+  }
+  res.json(items[idx]);
+});
+
+app.delete('/api/:collection/:id', validateCollection, (req, res) => {
+  const collection = req.params.collection;
+  let items = readCollection(collection);
+  const before = items.length;
+  const removed = items.find(i => i.id === req.params.id);
+  items = items.filter(i => i.id !== req.params.id);
+  if (items.length === before) return res.status(404).json({ error: 'Not found' });
+  writeCollection(collection, items);
+
+  if (collection === 'projects') {
+    ['documents', 'snippets', 'media'].forEach(col => {
+      const related = readCollection(col).map(item =>
+        item.projectId === req.params.id ? { ...item, projectId: null } : item
+      );
+      writeCollection(col, related);
+    });
+    writeCollection('tasks', readCollection('tasks').filter(t => t.projectId !== req.params.id));
+  }
+  if (removed?.source && removed.source !== 'manual') {
+    appendAudit({ action: 'delete', collection, id: req.params.id, source: removed.source, title: removed.title });
+  }
+  res.json({ success: true });
+});
+
+// --- Revisions ---
+app.get('/api/:collection/:id/revisions', validateCollection, (req, res) => {
+  if (!VERSIONED_COLLECTIONS.has(req.params.collection)) return res.json([]);
+  res.json(readRevisions(req.params.collection, req.params.id));
+});
+
+app.post('/api/:collection/:id/restore/:revisionId', validateCollection, (req, res) => {
+  const { collection, id, revisionId } = req.params;
+  if (!VERSIONED_COLLECTIONS.has(collection)) return res.status(400).json({ error: 'Not versioned' });
+  const revs = readRevisions(collection, id);
+  const rev = revs.find(r => r.revisionId === revisionId);
+  if (!rev) return res.status(404).json({ error: 'Revision not found' });
+  const items = readCollection(collection);
+  const idx = items.findIndex(i => i.id === id);
+  if (idx === -1) return res.status(404).json({ error: 'Item not found' });
+  appendRevision(collection, id, {
+    revisionId: crypto.randomUUID(),
+    timestamp: new Date().toISOString(),
+    updatedBy: 'restore',
+    source: 'manual',
+    snapshot: items[idx],
+  });
+  items[idx] = { ...rev.snapshot, id, updatedAt: new Date().toISOString() };
+  writeCollection(collection, items);
+  res.json(items[idx]);
+});
+
 
 // --- Settings ---
 app.get('/api/settings', (req, res) => res.json(readSettings()));
