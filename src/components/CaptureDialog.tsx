@@ -400,7 +400,10 @@ export default function CaptureDialog() {
             <div className="flex gap-2">
               <Button variant="ghost" onClick={closeCapture} className="flex-1 sm:flex-none"><X className="mr-1 h-3.5 w-3.5" />Cancel</Button>
               <Button onClick={handleSave} disabled={saving} className="flex-1 sm:flex-none">
-                {saving ? 'Saving...' : pastedImage && !body.trim() && !title.trim() ? 'Save image to Media' : `Capture as ${resolvedType}`}
+                {saving ? 'Saving...'
+                  : saveToKnowledge ? 'Save to Knowledge Base'
+                  : pastedImage && !body.trim() && !title.trim() ? 'Save image to Media'
+                  : `Capture as ${resolvedType}`}
               </Button>
             </div>
           </div>
