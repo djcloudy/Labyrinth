@@ -266,81 +266,127 @@ export default function ProjectDetail() {
         )}
 
         {/* Tasks section */}
-        <div className="mb-8">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="flex items-center gap-2 text-lg font-semibold"><ListTodo className="h-5 w-5 text-warning" /> Tasks</h2>
-            <Button size="sm" variant="ghost" onClick={openTaskCreate} className="gap-1 text-primary hover:text-primary"><Plus className="h-3.5 w-3.5" /> Add task</Button>
+        {visibleSections.includes('tasks') && (
+          <div className="mb-8">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="flex items-center gap-2 text-lg font-semibold"><ListTodo className="h-5 w-5 text-warning" /> Tasks</h2>
+              <Button size="sm" variant="ghost" onClick={openTaskCreate} className="gap-1 text-primary hover:text-primary"><Plus className="h-3.5 w-3.5" /> Add task</Button>
+            </div>
+            {loadingTasks ? <Skeleton className="h-16 w-full" /> : tasks.length === 0 ? (
+              <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-10 text-center">
+                <ListTodo className="mb-2 h-6 w-6 text-muted-foreground" />
+                <p className="mb-3 text-sm text-muted-foreground">No tasks yet — track what needs doing for this project.</p>
+                <Button size="sm" onClick={openTaskCreate} className="gap-1"><Plus className="h-3.5 w-3.5" /> New task</Button>
+              </div>
+            ) : filteredTasks.length === 0 ? (
+              <p className="text-sm text-muted-foreground italic">No tasks match your filter.</p>
+            ) : (
+              <div className="space-y-2">
+                {filteredTasks.map(task => {
+                  const StatusIcon = STATUS_ICONS[task.status].icon;
+                  return (
+                    <div key={task.id} className="group flex items-center gap-3 rounded-lg border border-border bg-card p-3 hover:border-warning/30 transition-colors cursor-pointer" onClick={() => setViewTask(task)}>
+                      <button onClick={(e) => { e.stopPropagation(); cycleTaskStatus(task); }} title="Cycle status">
+                        <StatusIcon className={cn('h-4 w-4', STATUS_ICONS[task.status].className)} />
+                      </button>
+                      <div className="min-w-0 flex-1">
+                        <p className={cn("text-sm font-medium text-foreground truncate", task.status === 'DONE' && 'line-through text-muted-foreground')}>{task.title}</p>
+                        {task.description && <p className="text-xs text-muted-foreground line-clamp-1 break-words">{task.description}</p>}
+                      </div>
+                      <span className={cn('rounded px-1.5 py-0.5 text-[10px] font-bold shrink-0', PRIORITY_COLORS[task.priority])}>{task.priority}</span>
+                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                        <button onClick={(e) => { e.stopPropagation(); openTaskEdit(task); }} className="rounded-md p-1.5 hover:bg-secondary text-muted-foreground hover:text-foreground"><Pencil className="h-3.5 w-3.5" /></button>
+                        <button onClick={(e) => { e.stopPropagation(); deleteTask(task.id); }} className="rounded-md p-1.5 hover:bg-destructive/20 text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
-          {loadingTasks ? <Skeleton className="h-16 w-full" /> : tasks.length === 0 ? (
-            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-10 text-center">
-              <ListTodo className="mb-2 h-6 w-6 text-muted-foreground" />
-              <p className="mb-3 text-sm text-muted-foreground">No tasks yet — track what needs doing for this project.</p>
-              <Button size="sm" onClick={openTaskCreate} className="gap-1"><Plus className="h-3.5 w-3.5" /> New task</Button>
-            </div>
-          ) : filteredTasks.length === 0 ? (
-            <p className="text-sm text-muted-foreground italic">No tasks match your filter.</p>
-          ) : (
-            <div className="space-y-2">
-              {filteredTasks.map(task => {
-                const StatusIcon = STATUS_ICONS[task.status].icon;
-                return (
-                  <div key={task.id} className="group flex items-center gap-3 rounded-lg border border-border bg-card p-3 hover:border-warning/30 transition-colors cursor-pointer" onClick={() => setViewTask(task)}>
-                    <button onClick={(e) => { e.stopPropagation(); cycleTaskStatus(task); }} title="Cycle status">
-                      <StatusIcon className={cn('h-4 w-4', STATUS_ICONS[task.status].className)} />
-                    </button>
-                    <div className="min-w-0 flex-1">
-                      <p className={cn("text-sm font-medium text-foreground truncate", task.status === 'DONE' && 'line-through text-muted-foreground')}>{task.title}</p>
-                      {task.description && <p className="text-xs text-muted-foreground line-clamp-1 break-words">{task.description}</p>}
-                    </div>
-                    <span className={cn('rounded px-1.5 py-0.5 text-[10px] font-bold shrink-0', PRIORITY_COLORS[task.priority])}>{task.priority}</span>
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                      <button onClick={(e) => { e.stopPropagation(); openTaskEdit(task); }} className="rounded-md p-1.5 hover:bg-secondary text-muted-foreground hover:text-foreground"><Pencil className="h-3.5 w-3.5" /></button>
-                      <button onClick={(e) => { e.stopPropagation(); deleteTask(task.id); }} className="rounded-md p-1.5 hover:bg-destructive/20 text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
+        )}
 
         {/* Snippets section */}
-        <div>
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="flex items-center gap-2 text-lg font-semibold"><Code2 className="h-5 w-5 text-success" /> Snippets</h2>
-            <Button size="sm" variant="ghost" onClick={openSnipCreate} className="gap-1 text-primary hover:text-primary"><Plus className="h-3.5 w-3.5" /> Add snippet</Button>
-          </div>
-          {loadingSnippets ? <Skeleton className="h-16 w-full" /> : snippets.length === 0 ? (
-            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-10 text-center">
-              <Code2 className="mb-2 h-6 w-6 text-muted-foreground" />
-              <p className="mb-3 text-sm text-muted-foreground">No snippets yet — save commands, configs, or scripts you reuse.</p>
-              <Button size="sm" onClick={openSnipCreate} className="gap-1"><Plus className="h-3.5 w-3.5" /> New snippet</Button>
+        {visibleSections.includes('snippets') && (
+          <div className="mb-8">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="flex items-center gap-2 text-lg font-semibold"><Code2 className="h-5 w-5 text-success" /> Snippets</h2>
+              <Button size="sm" variant="ghost" onClick={openSnipCreate} className="gap-1 text-primary hover:text-primary"><Plus className="h-3.5 w-3.5" /> Add snippet</Button>
             </div>
-          ) : filteredSnippets.length === 0 ? (
-            <p className="text-sm text-muted-foreground italic">No snippets match your filter.</p>
-          ) : (
-            <div className="space-y-3">
-              {filteredSnippets.map(snip => (
-                <div key={snip.id} className="group rounded-xl border border-border bg-card p-4 hover:border-success/30 transition-colors cursor-pointer" onClick={() => setViewSnippet(snip)}>
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex min-w-0 items-center gap-2">
-                      <h3 className="font-semibold text-foreground truncate">{snip.title}</h3>
-                      <span className={`shrink-0 rounded px-2 py-0.5 text-xs font-bold ${LANG_COLORS[snip.language]}`}>{snip.language}</span>
+            {loadingSnippets ? <Skeleton className="h-16 w-full" /> : snippets.length === 0 ? (
+              <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-10 text-center">
+                <Code2 className="mb-2 h-6 w-6 text-muted-foreground" />
+                <p className="mb-3 text-sm text-muted-foreground">No snippets yet — save commands, configs, or scripts you reuse.</p>
+                <Button size="sm" onClick={openSnipCreate} className="gap-1"><Plus className="h-3.5 w-3.5" /> New snippet</Button>
+              </div>
+            ) : filteredSnippets.length === 0 ? (
+              <p className="text-sm text-muted-foreground italic">No snippets match your filter.</p>
+            ) : (
+              <div className="space-y-3">
+                {filteredSnippets.map(snip => (
+                  <div key={snip.id} className="group rounded-xl border border-border bg-card p-4 hover:border-success/30 transition-colors cursor-pointer" onClick={() => setViewSnippet(snip)}>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <h3 className="font-semibold text-foreground truncate">{snip.title}</h3>
+                        <span className={`shrink-0 rounded px-2 py-0.5 text-xs font-bold ${LANG_COLORS[snip.language]}`}>{snip.language}</span>
+                      </div>
+                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                        <button onClick={(e) => { e.stopPropagation(); handleCopy(snip.id, snip.code); }} className="rounded-md p-1.5 hover:bg-secondary text-muted-foreground hover:text-foreground" title="Copy">
+                          {copiedId === snip.id ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
+                        </button>
+                        <button onClick={(e) => { e.stopPropagation(); openSnipEdit(snip); }} className="rounded-md p-1.5 hover:bg-secondary text-muted-foreground hover:text-foreground"><Pencil className="h-3.5 w-3.5" /></button>
+                        <button onClick={(e) => { e.stopPropagation(); deleteSnippet(snip.id); }} className="rounded-md p-1.5 hover:bg-destructive/20 text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
+                      </div>
                     </div>
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                      <button onClick={(e) => { e.stopPropagation(); handleCopy(snip.id, snip.code); }} className="rounded-md p-1.5 hover:bg-secondary text-muted-foreground hover:text-foreground" title="Copy">
-                        {copiedId === snip.id ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
-                      </button>
-                      <button onClick={(e) => { e.stopPropagation(); openSnipEdit(snip); }} className="rounded-md p-1.5 hover:bg-secondary text-muted-foreground hover:text-foreground"><Pencil className="h-3.5 w-3.5" /></button>
-                      <button onClick={(e) => { e.stopPropagation(); deleteSnippet(snip.id); }} className="rounded-md p-1.5 hover:bg-destructive/20 text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
+                    <pre className="mt-2 rounded-md bg-black/80 px-3 py-2 text-xs font-mono text-green-400 max-h-10 overflow-hidden whitespace-pre-wrap break-all">{snip.code}</pre>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Media section */}
+        {visibleSections.includes('media') && (
+          <div>
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="flex items-center gap-2 text-lg font-semibold"><Image className="h-5 w-5 text-primary" /> Media</h2>
+            </div>
+            {loadingMedia ? <Skeleton className="h-16 w-full" /> : media.length === 0 ? (
+              <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-10 text-center">
+                <Image className="mb-2 h-6 w-6 text-muted-foreground" />
+                <p className="mb-3 text-sm text-muted-foreground">No media yet — upload screenshots, diagrams, or reference images.</p>
+              </div>
+            ) : filteredMedia.length === 0 ? (
+              <p className="text-sm text-muted-foreground italic">No media match your filter.</p>
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {filteredMedia.map(item => (
+                  <div key={item.id} className="group relative rounded-xl border border-border bg-card overflow-hidden hover:border-primary/30 transition-colors">
+                    <button onClick={() => setViewMedia(item)} className="block w-full">
+                      <div className="aspect-video bg-background flex items-center justify-center overflow-hidden">
+                        {item.type.startsWith('image/') ? (
+                          <img src={item.url} alt={item.title} className="h-full w-full object-cover" />
+                        ) : (
+                          <Image className="h-10 w-10 text-muted-foreground" />
+                        )}
+                      </div>
+                    </button>
+                    <div className="p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm font-medium text-foreground truncate">{item.title}</p>
+                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                          <button onClick={(e) => { e.stopPropagation(); setViewMedia(item); }} className="rounded-md p-1.5 hover:bg-secondary text-muted-foreground hover:text-foreground" title="View"><Eye className="h-3.5 w-3.5" /></button>
+                          <button onClick={(e) => { e.stopPropagation(); mediaStore.delete(item.id).then(refreshMedia); }} className="rounded-md p-1.5 hover:bg-destructive/20 text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  <pre className="mt-2 rounded-md bg-black/80 px-3 py-2 text-xs font-mono text-green-400 max-h-10 overflow-hidden whitespace-pre-wrap break-all">{snip.code}</pre>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
 
         {/* View Document Dialog */}
