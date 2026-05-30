@@ -1,21 +1,22 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileText, Code2, ListTodo, Sparkles, FolderKanban, Image, Bot, Settings, LayoutDashboard, Activity } from 'lucide-react';
+import { FileText, Code2, ListTodo, Sparkles, FolderKanban, Image, Bot, Settings, LayoutDashboard, Activity, BookOpen, Link2, Image as ImageIcon } from 'lucide-react';
 import {
   CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator,
 } from '@/components/ui/command';
 import { useCapture } from '@/hooks/use-capture';
 import { apiGetAll } from '@/lib/api';
-import type { Document, Snippet, Task, Project } from '@/lib/types';
+import type { Document, Snippet, Task, Project, KnowledgeEntry } from '@/lib/types';
 
 interface SearchIndex {
   documents: Document[];
   snippets: Snippet[];
   tasks: Task[];
   projects: Project[];
+  knowledge: KnowledgeEntry[];
 }
 
-const EMPTY: SearchIndex = { documents: [], snippets: [], tasks: [], projects: [] };
+const EMPTY: SearchIndex = { documents: [], snippets: [], tasks: [], projects: [], knowledge: [] };
 
 export default function CommandPalette() {
   const [open, setOpen] = useState(false);
