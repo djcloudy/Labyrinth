@@ -82,7 +82,7 @@ export default function DocumentEditor({ open, onOpenChange, editing, projects, 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="bg-card border-border max-w-6xl h-[85vh] flex flex-col p-0 gap-0">
-        <DialogHeader className="border-b border-border px-5 py-3 shrink-0">
+        <DialogHeader className="border-b border-border px-5 py-3 pr-12 shrink-0">
           <div className="flex items-center justify-between gap-4">
             <div className="flex min-w-0 flex-1 items-center gap-2">
               <FileText className="h-4 w-4 text-primary shrink-0" />
