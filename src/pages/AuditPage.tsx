@@ -140,7 +140,7 @@ export default function AuditPage() {
                 {filtered.map(r => {
                   const linkFn = COLLECTION_LINK[r.collection];
                   return (
-                    <tr key={r.id} className="border-t border-border hover:bg-secondary/30">
+                    <tr key={`${r.id}-${r.timestamp}`} className="border-t border-border hover:bg-secondary/30">
                       <td className="px-4 py-3 text-muted-foreground whitespace-nowrap" title={new Date(r.timestamp).toLocaleString()}>
                         {formatDistanceToNow(new Date(r.timestamp), { addSuffix: true })}
                       </td>
