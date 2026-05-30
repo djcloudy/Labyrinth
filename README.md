@@ -215,4 +215,168 @@ Returns `{ type, collection, item }`.
 
 ### Auth
 
-Set `LABYRINTH_API_KEY` in the server environment to require Bearer auth on `/api/capture`. If unset, the endpoint is open (local mode). Browser CRUD endpoints are unauthenticated by design.
+The `/api/capture` endpoint requires a Bearer token when `LABYRINTH_API_KEY` is set on the server. If the variable is unset, the endpoint is open (local mode). Browser CRUD endpoints (`/api/projects`, `/api/documents`, etc.) are unauthenticated by design — protect them with a reverse proxy if exposing publicly.
+
+---
+
+## Labyrinth API Key (for agents & scripts)
+
+External agents, cron jobs, CI runners, and custom scripts authenticate to Labyrinth's write endpoints using a single static Bearer token: `LABYRINTH_API_KEY`. This section explains how to generate one and use it.
+
+### 1. Generate a key
+
+Any high-entropy string works. Pick one:
+
+```bash
+# 32-byte URL-safe random (recommended)
+openssl rand -base64 32
+
+# Or with /dev/urandom
+head -c 32 /dev/urandom | base64
+
+# Or with uuidgen (lower entropy, still fine for personal labs)
+uuidgen
+```
+
+Treat the result like a password — store it in a password manager and never commit it to git.
+
+### 2. Configure the server
+
+Set `LABYRINTH_API_KEY` in the server environment. Examples:
+
+**Shell / one-shot:**
+```bash
+LABYRINTH_API_KEY="paste-your-generated-key-here" node server.js
+```
+
+**systemd unit** (`/etc/systemd/system/labyrinth.service`):
+```ini
+[Service]
+Environment=LABYRINTH_API_KEY=paste-your-generated-key-here
+# ...other Environment= lines
+```
+Reload after editing:
+```bash
+sudo systemctl daemon-reload && sudo systemctl restart labyrinth
+```
+
+**docker / docker-compose:**
+```yaml
+services:
+  labyrinth:
+    environment:
+      LABYRINTH_API_KEY: paste-your-generated-key-here
+```
+
+On startup, the server logs whether auth is enabled:
+```
+Assistant API key: enabled (LABYRINTH_API_KEY set)
+```
+
+### 3. Use the key in agents & scripts
+
+All authenticated endpoints accept the key in either header form:
+
+```
+Authorization: Bearer <LABYRINTH_API_KEY>
+# or
+x-api-key: <LABYRINTH_API_KEY>
+```
+
+**Endpoints that honor the key** (auth required only when `LABYRINTH_API_KEY` is set):
+- `POST /api/capture` — unified write for documents / snippets / tasks
+- `GET /api/audit` — audit trail of assistant & API writes
+- `GET /api/:collection/:id/revisions`, `POST .../restore/:revisionId` — revision history
+
+#### curl
+```bash
+export LABYRINTH_API_KEY="paste-your-key"
+export LABYRINTH_URL="http://your-host:3002"
+
+curl -X POST "$LABYRINTH_URL/api/capture" \
+  -H "Authorization: Bearer $LABYRINTH_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "auto",
+    "title": "Backup ran cleanly",
+    "content": "Borg backup finished in 4m12s on 2026-05-30.",
+    "tags": ["ops","backup"],
+    "source": "assistant",
+    "createdBy": "backup-cron"
+  }'
+```
+
+#### Python
+```python
+import os, requests
+
+requests.post(
+    f"{os.environ['LABYRINTH_URL']}/api/capture",
+    headers={"Authorization": f"Bearer {os.environ['LABYRINTH_API_KEY']}"},
+    json={
+        "type": "snippet",
+        "title": "Restart caddy",
+        "code": "sudo systemctl restart caddy",
+        "language": "BASH",
+        "tags": ["ops", "caddy"],
+        "source": "assistant",
+        "createdBy": "ops-bot",
+    },
+    timeout=10,
+).raise_for_status()
+```
+
+#### Node / fetch
+```js
+await fetch(`${process.env.LABYRINTH_URL}/api/capture`, {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${process.env.LABYRINTH_API_KEY}`,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    type: 'task',
+    title: 'Rotate TLS certs',
+    description: 'LE renewal failed twice this week — investigate.',
+    priority: 'HIGH',
+    projectId: 'proj_homelab',
+    source: 'assistant',
+    createdBy: 'monitoring-bot',
+    externalRef: 'alert-7782',
+  }),
+});
+```
+
+### 4. Verifying it works
+
+```bash
+# Should succeed
+curl -i -H "Authorization: Bearer $LABYRINTH_API_KEY" \
+     -H "Content-Type: application/json" \
+     -d '{"type":"document","title":"hello","content":"works"}' \
+     "$LABYRINTH_URL/api/capture"
+
+# Should 401
+curl -i -H "Content-Type: application/json" \
+     -d '{"type":"document","title":"nope"}' \
+     "$LABYRINTH_URL/api/capture"
+```
+
+Every authenticated write is recorded in the **Audit** page (and `GET /api/audit`) with its `source` and `createdBy` for provenance.
+
+### 5. Rotating the key
+
+1. Generate a new key (`openssl rand -base64 32`).
+2. Update `LABYRINTH_API_KEY` in your systemd unit / compose file / shell env.
+3. Restart the server (`sudo systemctl restart labyrinth`).
+4. Update the key in every agent / script / secret manager that uses it.
+
+The key is read at server start, so a restart is required after any change.
+
+### Security notes
+
+- The key is a shared secret — anyone with it can write to your lab. Scope distribution accordingly.
+- Always terminate TLS in front of Labyrinth (Nginx, Caddy, Traefik) before exposing it beyond `localhost`.
+- Browser CRUD endpoints are intentionally unauthenticated for the local UI; do not expose port 3002 directly to the internet without a reverse proxy enforcing access control.
+- Set distinct keys per environment (dev vs. prod) and never reuse them across deployments.
+
