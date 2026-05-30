@@ -464,7 +464,7 @@ export default function AIHubPage() {
 
         {/* Knowledge base toggle */}
         {contextAllowed ? (
-          <div className="mt-2 flex items-center gap-2">
+          <div className="mt-2 flex flex-wrap items-center gap-2">
             <Switch
               id="knowledge-base"
               checked={knowledgeBase}
@@ -474,7 +474,21 @@ export default function AIHubPage() {
               <Database className="h-3.5 w-3.5" />
               Include project knowledge base
             </label>
+            {knowledgeBase && (
+              <Select value={knowledgeScope} onValueChange={setKnowledgeScope}>
+                <SelectTrigger className="h-7 w-56 text-xs bg-secondary border-border">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-border">
+                  <SelectItem value="all">All projects (index only)</SelectItem>
+                  {kbProjects.map(p => (
+                    <SelectItem key={p.id} value={p.id}>{p.name} — full content</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
+
         ) : (
           <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
             <Shield className="h-3.5 w-3.5" />
