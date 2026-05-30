@@ -45,18 +45,7 @@ interface AISettings {
 }
 
 const SETTINGS_KEY = 'labyrinth_ai_settings';
-const CONVERSATIONS_KEY = 'labyrinth_ai_conversations';
 const ACTIVE_CONVERSATION_KEY = 'labyrinth_ai_active_conversation';
-
-interface Conversation {
-  id: string;
-  title: string;
-  messages: Message[];
-  provider: Provider;
-  model: string;
-  createdAt: string;
-  updatedAt: string;
-}
 
 function loadSettings(): AISettings {
   try { return JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'); } catch { return {}; }
@@ -64,17 +53,6 @@ function loadSettings(): AISettings {
 
 function persistSettings(s: AISettings) {
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
-}
-
-function loadConversations(): Conversation[] {
-  try {
-    const raw = JSON.parse(localStorage.getItem(CONVERSATIONS_KEY) || '[]');
-    return Array.isArray(raw) ? raw : [];
-  } catch { return []; }
-}
-
-function persistConversations(c: Conversation[]) {
-  localStorage.setItem(CONVERSATIONS_KEY, JSON.stringify(c));
 }
 
 function deriveTitle(messages: Message[]): string {
