@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { Bot, Send, Settings2, Trash2, Loader2, AlertCircle, RefreshCw, Paperclip, X, Database, Shield, Wifi, WifiOff, Plus, MessageSquare, Pencil, Check } from 'lucide-react';
+import { Bot, Send, Settings2, Trash2, Loader2, AlertCircle, RefreshCw, Paperclip, X, Database, Shield, Wifi, WifiOff, Plus, MessageSquare, Pencil } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import AppLayout from '@/components/AppLayout';
 import { Button } from '@/components/ui/button';
@@ -12,13 +12,13 @@ import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import { useAIModels } from '@/hooks/use-ai-models';
 import { useOllamaStatus } from '@/hooks/use-ollama-status';
-import { documentStore, snippetStore, projectStore, mediaStore, taskStore } from '@/lib/store';
+import { documentStore, snippetStore, projectStore, mediaStore, taskStore, conversationStore } from '@/lib/store';
 import { useStore } from '@/hooks/use-store';
 import AttachContextDialog, { type Attachment } from '@/components/AttachContextDialog';
-import type { Document, Snippet, Project } from '@/lib/types';
+import type { Document, Snippet, Project, Conversation, ChatMessage } from '@/lib/types';
 
 type Provider = 'openai' | 'gemini' | 'ollama';
-type Message = { role: 'user' | 'assistant' | 'system'; content: string };
+type Message = ChatMessage;
 
 const PROVIDER_MODELS: Record<Provider, string[]> = {
   openai: ['gpt-4o-mini', 'gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo'],
@@ -45,18 +45,7 @@ interface AISettings {
 }
 
 const SETTINGS_KEY = 'labyrinth_ai_settings';
-const CONVERSATIONS_KEY = 'labyrinth_ai_conversations';
 const ACTIVE_CONVERSATION_KEY = 'labyrinth_ai_active_conversation';
-
-interface Conversation {
-  id: string;
-  title: string;
-  messages: Message[];
-  provider: Provider;
-  model: string;
-  createdAt: string;
-  updatedAt: string;
-}
 
 function loadSettings(): AISettings {
   try { return JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'); } catch { return {}; }
@@ -64,17 +53,6 @@ function loadSettings(): AISettings {
 
 function persistSettings(s: AISettings) {
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
-}
-
-function loadConversations(): Conversation[] {
-  try {
-    const raw = JSON.parse(localStorage.getItem(CONVERSATIONS_KEY) || '[]');
-    return Array.isArray(raw) ? raw : [];
-  } catch { return []; }
-}
-
-function persistConversations(c: Conversation[]) {
-  localStorage.setItem(CONVERSATIONS_KEY, JSON.stringify(c));
 }
 
 function deriveTitle(messages: Message[]): string {
@@ -85,13 +63,9 @@ function deriveTitle(messages: Message[]): string {
 }
 
 export default function AIHubPage() {
-  const [conversations, setConversations] = useState<Conversation[]>(loadConversations);
-  const [activeId, setActiveId] = useState<string>(() => {
-    const stored = localStorage.getItem(ACTIVE_CONVERSATION_KEY);
-    const list = loadConversations();
-    if (stored && list.some(c => c.id === stored)) return stored;
-    return list[0]?.id ?? '';
-  });
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [activeId, setActiveId] = useState<string>('');
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
 
@@ -110,30 +84,47 @@ export default function AIHubPage() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  useEffect(() => { persistConversations(conversations); }, [conversations]);
   useEffect(() => { if (activeId) localStorage.setItem(ACTIVE_CONVERSATION_KEY, activeId); }, [activeId]);
 
-  const newConversation = useCallback(() => {
-    const now = new Date().toISOString();
-    const conv: Conversation = {
-      id: crypto.randomUUID(),
+  // Initial load from store
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const all = await conversationStore.getAll();
+        if (cancelled) return;
+        setConversations(all);
+        const stored = localStorage.getItem(ACTIVE_CONVERSATION_KEY);
+        if (stored && all.some(c => c.id === stored)) setActiveId(stored);
+        else if (all.length) setActiveId(all[0].id);
+      } catch (e) {
+        console.error('Failed to load conversations', e);
+      } finally {
+        if (!cancelled) setLoaded(true);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const newConversation = useCallback(async () => {
+    const conv = await conversationStore.create({
       title: 'New chat',
       messages: [],
       provider: provider ?? 'openai',
       model: model ?? PROVIDER_MODELS.openai[0],
-      createdAt: now,
-      updatedAt: now,
-    };
+    });
     setConversations(prev => [conv, ...prev]);
     setActiveId(conv.id);
     return conv;
   }, [provider, model]);
 
+  // Ensure at least one conversation exists once load completes
   useEffect(() => {
-    if (conversations.length === 0) newConversation();
-    else if (!activeId) setActiveId(conversations[0].id);
+    if (loaded && conversations.length === 0) {
+      newConversation();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [loaded]);
 
   const updateActive = useCallback((patch: Partial<Conversation> | ((c: Conversation) => Partial<Conversation>)) => {
     setConversations(prev => prev.map(c => {
@@ -151,18 +142,31 @@ export default function AIHubPage() {
     });
   }, [updateActive]);
 
-  const setProvider = useCallback((p: Provider) => updateActive({ provider: p }), [updateActive]);
-  const setModel = useCallback((m: string) => updateActive({ model: m }), [updateActive]);
+  const persistActivePatch = useCallback((id: string, patch: Partial<Conversation>) => {
+    conversationStore.update(id, patch).catch(err => console.error('Failed to persist conversation', err));
+  }, []);
 
-  const deleteConversation = (id: string) => {
+  const setProvider = useCallback((p: Provider) => {
+    updateActive({ provider: p });
+    if (activeId) persistActivePatch(activeId, { provider: p });
+  }, [updateActive, activeId, persistActivePatch]);
+
+  const setModel = useCallback((m: string) => {
+    updateActive({ model: m });
+    if (activeId) persistActivePatch(activeId, { model: m });
+  }, [updateActive, activeId, persistActivePatch]);
+
+  const deleteConversation = async (id: string) => {
+    try { await conversationStore.delete(id); } catch (e) { console.error(e); }
     setConversations(prev => {
       const next = prev.filter(c => c.id !== id);
       if (id === activeId) {
         if (next.length === 0) {
-          const now = new Date().toISOString();
-          const conv: Conversation = { id: crypto.randomUUID(), title: 'New chat', messages: [], provider: 'openai', model: PROVIDER_MODELS.openai[0], createdAt: now, updatedAt: now };
-          setActiveId(conv.id);
-          return [conv];
+          // Trigger creation in next tick via newConversation
+          setActiveId('');
+          // schedule new conversation creation
+          setTimeout(() => { newConversation(); }, 0);
+          return [];
         }
         setActiveId(next[0].id);
       }
@@ -172,7 +176,10 @@ export default function AIHubPage() {
 
   const commitRename = (id: string) => {
     const t = renameValue.trim();
-    if (t) setConversations(prev => prev.map(c => c.id === id ? { ...c, title: t } : c));
+    if (t) {
+      setConversations(prev => prev.map(c => c.id === id ? { ...c, title: t } : c));
+      persistActivePatch(id, { title: t });
+    }
     setRenamingId(null);
   };
 
@@ -385,14 +392,37 @@ export default function AIHubPage() {
     } finally {
       setIsStreaming(false);
       inputRef.current?.focus();
+      // Persist final conversation state to store (server or localStorage fallback)
+      const id = activeId;
+      if (id) {
+        setConversations(prev => {
+          const conv = prev.find(c => c.id === id);
+          if (conv) {
+            const titlePatch = (conv.title === 'New chat' || !conv.title) ? { title: deriveTitle(conv.messages) } : {};
+            conversationStore
+              .update(id, { messages: conv.messages, ...titlePatch })
+              .then(updated => {
+                if (updated && titlePatch.title) {
+                  setConversations(p => p.map(c => c.id === id ? { ...c, title: updated.title } : c));
+                }
+              })
+              .catch(err => console.error('Failed to persist conversation messages', err));
+          }
+          return prev;
+        });
+      }
     }
-  }, [input, messages, provider, model, settings, isStreaming, attachments, knowledgeBase, buildContextMessages]);
+  }, [input, messages, provider, model, settings, isStreaming, attachments, knowledgeBase, buildContextMessages, activeId]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   };
 
-  const clearChat = () => { setMessages([]); setError(null); };
+  const clearChat = () => {
+    setMessages([]);
+    setError(null);
+    if (activeId) persistActivePatch(activeId, { messages: [] });
+  };
   const hasApiKey = provider === 'ollama' || settings[`${provider}ApiKey` as keyof AISettings];
 
   const sortedConversations = useMemo(

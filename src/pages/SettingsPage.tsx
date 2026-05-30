@@ -1,9 +1,12 @@
-import { Settings, HardDrive, Database, Shield } from 'lucide-react';
+import { Settings, HardDrive, Database, Shield, MessageSquare } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import AppLayout from '@/components/AppLayout';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { checkApiHealth, getHealthData, isApiAvailable } from '@/lib/api';
+import { conversationStore } from '@/lib/store';
+import { toast } from '@/hooks/use-toast';
 
 type Provider = 'openai' | 'gemini' | 'ollama';
 
@@ -16,6 +19,19 @@ interface ContextSharingSettings {
 const CONTEXT_SHARING_KEY = 'labyrinth_context_sharing';
 const DEFAULT_CONTEXT_SHARING: ContextSharingSettings = { openai: false, gemini: false, ollama: true };
 
+const RETENTION_KEY = 'labyrinth_ai_retention';
+const DEFAULT_MAX_CONVERSATIONS = 50;
+
+interface RetentionSettings { maxConversations: number }
+
+function loadRetention(): RetentionSettings {
+  try {
+    const stored = JSON.parse(localStorage.getItem(RETENTION_KEY) || 'null');
+    const n = Number(stored?.maxConversations);
+    return { maxConversations: Number.isFinite(n) && n > 0 ? Math.floor(n) : DEFAULT_MAX_CONVERSATIONS };
+  } catch { return { maxConversations: DEFAULT_MAX_CONVERSATIONS }; }
+}
+
 function loadContextSharing(): ContextSharingSettings {
   try {
     const stored = JSON.parse(localStorage.getItem(CONTEXT_SHARING_KEY) || 'null');
@@ -27,6 +43,9 @@ export default function SettingsPage() {
   const [storageMode, setStorageMode] = useState<'checking' | 'disk' | 'local'>('checking');
   const [dataDir, setDataDir] = useState<string>('');
   const [contextSharing, setContextSharing] = useState<ContextSharingSettings>(loadContextSharing);
+  const [retention, setRetention] = useState<RetentionSettings>(loadRetention);
+  const [conversationCount, setConversationCount] = useState<number | null>(null);
+  const [pruning, setPruning] = useState(false);
 
   const toggleContextSharing = (provider: Provider) => {
     const next = { ...contextSharing, [provider]: !contextSharing[provider] };
@@ -34,10 +53,49 @@ export default function SettingsPage() {
     localStorage.setItem(CONTEXT_SHARING_KEY, JSON.stringify(next));
   };
 
+  const updateMaxConversations = (value: number) => {
+    const safe = Number.isFinite(value) && value > 0 ? Math.floor(value) : DEFAULT_MAX_CONVERSATIONS;
+    const next = { ...retention, maxConversations: safe };
+    setRetention(next);
+    localStorage.setItem(RETENTION_KEY, JSON.stringify(next));
+  };
+
+  const refreshConversationCount = async () => {
+    try {
+      const all = await conversationStore.getAll();
+      setConversationCount(all.length);
+    } catch { setConversationCount(null); }
+  };
+
+  const pruneOldConversations = async () => {
+    setPruning(true);
+    try {
+      const all = await conversationStore.getAll();
+      const sorted = [...all].sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+      const toDelete = sorted.slice(retention.maxConversations);
+      if (toDelete.length === 0) {
+        toast({ title: 'Nothing to delete', description: `You have ${all.length} conversations (limit ${retention.maxConversations}).` });
+        return;
+      }
+      if (!confirm(`Delete ${toDelete.length} older conversation${toDelete.length === 1 ? '' : 's'}? This cannot be undone.`)) return;
+      for (const c of toDelete) {
+        await conversationStore.delete(c.id);
+      }
+      toast({ title: 'Conversations cleaned up', description: `Deleted ${toDelete.length} older conversation${toDelete.length === 1 ? '' : 's'}.` });
+      await refreshConversationCount();
+    } catch (err) {
+      console.error(err);
+      toast({ title: 'Cleanup failed', description: String(err), variant: 'destructive' });
+    } finally {
+      setPruning(false);
+    }
+  };
+
   useEffect(() => {
     checkApiHealth().then(({ available, health }) => {
       setStorageMode(available ? 'disk' : 'local');
       if (health) setDataDir(health.dataDir);
+      refreshConversationCount();
     });
   }, []);
 
@@ -177,6 +235,38 @@ export default function SettingsPage() {
               ))}
             </div>
           </div>
+
+          {/* AI Conversations */}
+          <div className="rounded-xl border border-border bg-card p-6">
+            <h2 className="mb-1 text-lg font-semibold text-foreground flex items-center gap-2">
+              <MessageSquare className="h-5 w-5 text-primary" />
+              AI Conversations
+            </h2>
+            <p className="mb-4 text-sm text-muted-foreground">
+              Conversations are saved to {storageMode === 'disk' ? <code className="rounded bg-secondary px-1.5 py-0.5 text-foreground">{dataDir || 'the server data directory'}</code> : 'your browser (localStorage)'}.
+              {conversationCount !== null && <> You currently have <span className="font-semibold text-foreground">{conversationCount}</span> stored.</>}
+            </p>
+            <div className="flex flex-wrap items-end gap-3">
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Maximum conversations to keep</label>
+                <Input
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={retention.maxConversations}
+                  onChange={(e) => updateMaxConversations(Number(e.target.value))}
+                  className="w-32 bg-secondary border-border"
+                />
+              </div>
+              <Button onClick={pruneOldConversations} variant="outline" disabled={pruning}>
+                {pruning ? 'Cleaning up...' : 'Delete old conversations now'}
+              </Button>
+            </div>
+            <p className="mt-3 text-xs text-muted-foreground">
+              Cleanup keeps the most recently updated chats and removes the rest. It only runs when you click the button.
+            </p>
+          </div>
+
 
           {/* Data Management */}
           <div className="rounded-xl border border-border bg-card p-6">
