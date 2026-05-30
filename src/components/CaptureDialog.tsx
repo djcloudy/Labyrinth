@@ -128,6 +128,48 @@ export default function CaptureDialog() {
         ...(notes ? { notes } : {}),
       };
 
+      // Save directly to Knowledge Base if requested — no project linkage
+      if (saveToKnowledge) {
+        const baseMeta = { tags: tagList, source: 'manual' as const, ...(notes ? { notes } : {}) };
+        if (pastedImage && !body.trim() && !title.trim()) {
+          await knowledgeStore.create({
+            kind: 'image' as KnowledgeKind,
+            title: pastedImage.name,
+            url: pastedImage.dataUrl,
+            mediaType: 'image',
+            ...baseMeta,
+          });
+        } else if (resolvedType === 'snippet') {
+          await knowledgeStore.create({
+            kind: 'snippet' as KnowledgeKind,
+            title: title || 'Untitled snippet',
+            code: stripFences(body),
+            language,
+            ...baseMeta,
+          });
+        } else if (pastedImage) {
+          // Image + text → save image entry, body becomes a separate note
+          await knowledgeStore.create({
+            kind: 'image' as KnowledgeKind,
+            title: pastedImage.name,
+            url: pastedImage.dataUrl,
+            mediaType: 'image',
+            description: body,
+            ...baseMeta,
+          });
+        } else {
+          await knowledgeStore.create({
+            kind: 'note' as KnowledgeKind,
+            title: title || (body.split('\n')[0] || 'Untitled').slice(0, 80),
+            content: body,
+            ...baseMeta,
+          });
+        }
+        toast.success('Saved to Knowledge Base');
+        closeCapture();
+        return;
+      }
+
       // If only an image was pasted (no text), save directly to media
       if (pastedImage && !body.trim() && !title.trim()) {
         await mediaStore.create({
