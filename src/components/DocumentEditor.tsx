@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
-import { Eye, EyeOff, FileText, Save, X, Sparkles, History } from 'lucide-react';
+import { Eye, EyeOff, FileText, Save, Sparkles, History } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -103,9 +103,6 @@ export default function DocumentEditor({ open, onOpenChange, editing, projects, 
             )}
             <Button variant="ghost" size="sm" onClick={() => setShowPreview(p => !p)} title="Toggle preview (⌘P)">
               {showPreview ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-            </Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onOpenChange(false)}>
-              <X className="h-4 w-4" />
             </Button>
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-2">
