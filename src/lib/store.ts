@@ -228,3 +228,39 @@ export const taskStore = {
     setLocal(KEYS.tasks, getLocal<Task>(KEYS.tasks).filter(t => t.id !== id));
   },
 };
+
+// Conversations
+export const conversationStore = {
+  getAll: async (): Promise<Conversation[]> => {
+    if (useApi()) return apiGetAll<Conversation>('conversations');
+    return getLocal(KEYS.conversations);
+  },
+  getById: async (id: string): Promise<Conversation | undefined> => {
+    if (useApi()) {
+      const all = await apiGetAll<Conversation>('conversations');
+      return all.find(c => c.id === id);
+    }
+    return getLocal<Conversation>(KEYS.conversations).find(c => c.id === id);
+  },
+  create: async (data: Omit<Conversation, 'id' | 'createdAt' | 'updatedAt'>): Promise<Conversation> => {
+    if (useApi()) return apiCreate<Conversation>('conversations', data);
+    const list = getLocal<Conversation>(KEYS.conversations);
+    const conv: Conversation = { ...data, id: crypto.randomUUID(), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+    list.push(conv);
+    setLocal(KEYS.conversations, list);
+    return conv;
+  },
+  update: async (id: string, data: Partial<Omit<Conversation, 'id' | 'createdAt'>>): Promise<Conversation | undefined> => {
+    if (useApi()) return apiUpdate<Conversation>('conversations', id, data);
+    const list = getLocal<Conversation>(KEYS.conversations);
+    const idx = list.findIndex(c => c.id === id);
+    if (idx === -1) return undefined;
+    list[idx] = { ...list[idx], ...data, updatedAt: new Date().toISOString() };
+    setLocal(KEYS.conversations, list);
+    return list[idx];
+  },
+  delete: async (id: string): Promise<void> => {
+    if (useApi()) return apiDelete('conversations', id);
+    setLocal(KEYS.conversations, getLocal<Conversation>(KEYS.conversations).filter(c => c.id !== id));
+  },
+};
