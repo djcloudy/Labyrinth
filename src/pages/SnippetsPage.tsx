@@ -1,16 +1,17 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, Pencil, Trash2, Copy, Check, Search } from 'lucide-react';
+import { Plus, Pencil, Trash2, Copy, Check, Search, Sparkles } from 'lucide-react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import AppLayout from '@/components/AppLayout';
+import CodeEditor from '@/components/CodeEditor';
 import { snippetStore, projectStore } from '@/lib/store';
 import { useStore } from '@/hooks/use-store';
 import { Snippet, SnippetLanguage, Project } from '@/lib/types';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { SNIPPET_TEMPLATES } from '@/lib/templates';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
@@ -165,11 +166,14 @@ export default function SnippetsPage() {
         </Dialog>
 
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogContent className="bg-card border-border">
-            <DialogHeader><DialogTitle>{editing ? 'Edit Snippet' : 'New Snippet'}</DialogTitle></DialogHeader>
+          <DialogContent className="bg-card border-border max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>{editing ? 'Edit Snippet' : 'New Snippet'}</DialogTitle>
+              <DialogDescription className="sr-only">Snippet editor with syntax highlighting</DialogDescription>
+            </DialogHeader>
             <div className="space-y-4">
               <Input placeholder="Title" value={title} onChange={e => setTitle(e.target.value)} className="bg-secondary border-border" />
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <Select value={language} onValueChange={v => setLanguage(v as SnippetLanguage)}>
                   <SelectTrigger className="bg-secondary border-border"><SelectValue /></SelectTrigger>
                   <SelectContent className="bg-card border-border">
@@ -185,8 +189,30 @@ export default function SnippetsPage() {
                     {projects.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
+                <Select value="" onValueChange={(id) => {
+                  const tpl = SNIPPET_TEMPLATES.find(t => t.id === id);
+                  if (!tpl) return;
+                  if (!title.trim()) setTitle(tpl.title);
+                  setLanguage(tpl.language);
+                  setCode(tpl.code);
+                }}>
+                  <SelectTrigger className="bg-secondary border-border">
+                    <Sparkles className="h-3 w-3 mr-1" />
+                    <SelectValue placeholder="Template..." />
+                  </SelectTrigger>
+                  <SelectContent className="bg-card border-border">
+                    {SNIPPET_TEMPLATES.map(t => (
+                      <SelectItem key={t.id} value={t.id}>
+                        <div className="flex items-center gap-2">
+                          <span>{t.label}</span>
+                          <span className="text-[10px] text-muted-foreground">{t.language}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-              <Textarea placeholder="Paste your code..." value={code} onChange={e => setCode(e.target.value)} rows={8} className="bg-secondary border-border font-mono text-sm" />
+              <CodeEditor value={code} onChange={setCode} language={language} height="340px" placeholder="Paste your code..." />
               <Button onClick={handleSave} className="w-full">{editing ? 'Save' : 'Create'}</Button>
             </div>
           </DialogContent>

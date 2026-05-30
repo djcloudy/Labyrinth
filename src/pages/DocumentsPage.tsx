@@ -4,13 +4,12 @@ import { Plus, Pencil, Trash2, ChevronDown, Search } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
 import AppLayout from '@/components/AppLayout';
+import DocumentEditor from '@/components/DocumentEditor';
 import { documentStore, projectStore } from '@/lib/store';
 import { useStore } from '@/hooks/use-store';
 import { Document, Project } from '@/lib/types';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
@@ -22,27 +21,32 @@ export default function DocumentsPage() {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Document | null>(null);
-  const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
-  const [projectId, setProjectId] = useState<string>('none');
   const [searchParams] = useSearchParams();
   const [expandedId, setExpandedId] = useState<string | null>(searchParams.get('doc'));
   const [search, setSearch] = useState('');
   const [filterProject, setFilterProject] = useState<string>('all');
 
-  const openCreate = () => { setEditing(null); setTitle(''); setContent(''); setProjectId('none'); setDialogOpen(true); };
-  const openEdit = (e: React.MouseEvent, d: Document) => { e.stopPropagation(); setEditing(d); setTitle(d.title); setContent(d.content); setProjectId(d.projectId || 'none'); setDialogOpen(true); };
+  const openCreate = useCallback(() => { setEditing(null); setDialogOpen(true); }, []);
+  const openEdit = (e: React.MouseEvent, d: Document) => { e.stopPropagation(); setEditing(d); setDialogOpen(true); };
 
-  const handleSave = async () => {
-    if (!title.trim()) return;
-    const pid = projectId === 'none' ? null : projectId;
-    if (editing) await documentStore.update(editing.id, { title, content, projectId: pid });
-    else await documentStore.create({ title, content, projectId: pid });
-    setDialogOpen(false);
+  const handleSave = async (data: { title: string; content: string; projectId: string | null }) => {
+    if (editing) await documentStore.update(editing.id, data);
+    else await documentStore.create(data);
     refresh();
   };
 
   const handleDelete = async (e: React.MouseEvent, id: string) => { e.stopPropagation(); await documentStore.delete(id); refresh(); };
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'n' || e.key === 'N') && !dialogOpen) {
+        e.preventDefault();
+        openCreate();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [dialogOpen, openCreate]);
 
   const toggleExpand = (id: string) => setExpandedId(prev => prev === id ? null : id);
 
@@ -135,23 +139,13 @@ export default function DocumentsPage() {
           </div>
         )}
 
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogContent className="bg-card border-border">
-            <DialogHeader><DialogTitle>{editing ? 'Edit Document' : 'New Document'}</DialogTitle></DialogHeader>
-            <div className="space-y-4">
-              <Input placeholder="Title" value={title} onChange={e => setTitle(e.target.value)} className="bg-secondary border-border" />
-              <Select value={projectId} onValueChange={setProjectId}>
-                <SelectTrigger className="bg-secondary border-border"><SelectValue placeholder="Link to project" /></SelectTrigger>
-                <SelectContent className="bg-card border-border">
-                  <SelectItem value="none">No project</SelectItem>
-                  {projects.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              <Textarea placeholder="Content (supports markdown)" value={content} onChange={e => setContent(e.target.value)} rows={10} className="bg-secondary border-border font-mono text-sm" />
-              <Button onClick={handleSave} className="w-full">{editing ? 'Save' : 'Create'}</Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <DocumentEditor
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          editing={editing}
+          projects={projects}
+          onSave={handleSave}
+        />
       </div>
     </AppLayout>
   );
