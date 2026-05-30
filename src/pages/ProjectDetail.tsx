@@ -224,44 +224,46 @@ export default function ProjectDetail() {
         <hr className="my-6 border-border" />
 
         {/* Documents section */}
-        <div className="mb-8">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="flex items-center gap-2 text-lg font-semibold"><FileText className="h-5 w-5 text-info" /> Documents</h2>
-            <Button size="sm" variant="ghost" onClick={openDocCreate} className="gap-1 text-primary hover:text-primary"><Plus className="h-3.5 w-3.5" /> Add doc</Button>
-          </div>
-          {loadingDocs ? <Skeleton className="h-16 w-full" /> : docs.length === 0 ? (
-            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-10 text-center">
-              <FileText className="mb-2 h-6 w-6 text-muted-foreground" />
-              <p className="mb-3 text-sm text-muted-foreground">No documents yet — capture a runbook, install guide, or troubleshooting note.</p>
-              <Button size="sm" onClick={openDocCreate} className="gap-1"><Plus className="h-3.5 w-3.5" /> New document</Button>
+        {visibleSections.includes('docs') && (
+          <div className="mb-8">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="flex items-center gap-2 text-lg font-semibold"><FileText className="h-5 w-5 text-info" /> Documents</h2>
+              <Button size="sm" variant="ghost" onClick={openDocCreate} className="gap-1 text-primary hover:text-primary"><Plus className="h-3.5 w-3.5" /> Add doc</Button>
             </div>
-          ) : filteredDocs.length === 0 ? (
-            <p className="text-sm text-muted-foreground italic">No documents match your filter.</p>
-          ) : (
-            <div className="space-y-3">
-              {filteredDocs.map(doc => (
-                <div key={doc.id} className="group rounded-xl border border-border bg-card p-4 hover:border-info/30 transition-colors cursor-pointer" onClick={() => setViewDoc(doc)}>
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <h3 className="font-semibold text-foreground truncate">{doc.title}</h3>
-                      <p className="mt-1 line-clamp-2 text-sm text-muted-foreground break-words">{doc.content || 'Empty document'}</p>
-                      {(doc.tags?.length || doc.source) && (
-                        <div className="mt-2 flex flex-wrap items-center gap-1">
-                          {doc.source && doc.source !== 'manual' && <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">{doc.source}</span>}
-                          {(doc.tags || []).map(t => <span key={t} className="rounded bg-secondary px-1.5 py-0.5 text-[10px] text-muted-foreground">#{t}</span>)}
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                      <button onClick={(e) => { e.stopPropagation(); openDocEdit(doc); }} className="rounded-md p-1.5 hover:bg-secondary text-muted-foreground hover:text-foreground"><Pencil className="h-3.5 w-3.5" /></button>
-                      <button onClick={(e) => { e.stopPropagation(); deleteDoc(doc.id); }} className="rounded-md p-1.5 hover:bg-destructive/20 text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
+            {loadingDocs ? <Skeleton className="h-16 w-full" /> : docs.length === 0 ? (
+              <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-10 text-center">
+                <FileText className="mb-2 h-6 w-6 text-muted-foreground" />
+                <p className="mb-3 text-sm text-muted-foreground">No documents yet — capture a runbook, install guide, or troubleshooting note.</p>
+                <Button size="sm" onClick={openDocCreate} className="gap-1"><Plus className="h-3.5 w-3.5" /> New document</Button>
+              </div>
+            ) : filteredDocs.length === 0 ? (
+              <p className="text-sm text-muted-foreground italic">No documents match your filter.</p>
+            ) : (
+              <div className="space-y-3">
+                {filteredDocs.map(doc => (
+                  <div key={doc.id} className="group rounded-xl border border-border bg-card p-4 hover:border-info/30 transition-colors cursor-pointer" onClick={() => setViewDoc(doc)}>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <h3 className="font-semibold text-foreground truncate">{doc.title}</h3>
+                        <p className="mt-1 line-clamp-2 text-sm text-muted-foreground break-words">{doc.content || 'Empty document'}</p>
+                        {(doc.tags?.length || doc.source) && (
+                          <div className="mt-2 flex flex-wrap items-center gap-1">
+                            {doc.source && doc.source !== 'manual' && <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">{doc.source}</span>}
+                            {(doc.tags || []).map(t => <span key={t} className="rounded bg-secondary px-1.5 py-0.5 text-[10px] text-muted-foreground">#{t}</span>)}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                        <button onClick={(e) => { e.stopPropagation(); openDocEdit(doc); }} className="rounded-md p-1.5 hover:bg-secondary text-muted-foreground hover:text-foreground"><Pencil className="h-3.5 w-3.5" /></button>
+                        <button onClick={(e) => { e.stopPropagation(); deleteDoc(doc.id); }} className="rounded-md p-1.5 hover:bg-destructive/20 text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Tasks section */}
         <div className="mb-8">
