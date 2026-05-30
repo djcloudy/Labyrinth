@@ -1,10 +1,10 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Pencil, Trash2, FileText, Code2, ListTodo, Circle, Clock, CheckCircle2, Copy, Check } from 'lucide-react';
+import { ArrowLeft, Pencil, Trash2, FileText, Code2, ListTodo, Circle, Clock, CheckCircle2, Copy, Check, Plus, Search, Tag } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import AppLayout from '@/components/AppLayout';
 import DocumentEditor from '@/components/DocumentEditor';
 import SnippetEditor from '@/components/SnippetEditor';
@@ -12,11 +12,13 @@ import TaskEditor from '@/components/TaskEditor';
 import { projectStore, documentStore, snippetStore, taskStore } from '@/lib/store';
 import { Project, Document, Snippet, SnippetLanguage, Task, TaskStatus, TaskPriority } from '@/lib/types';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useStore } from '@/hooks/use-store';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+
 
 const LANG_COLORS: Record<SnippetLanguage, string> = { BASH: 'bg-warning/20 text-warning', YAML: 'bg-info/20 text-info', PYTHON: 'bg-success/20 text-success' };
 const STATUS_ICONS: Record<TaskStatus, { icon: React.ElementType; className: string }> = {
