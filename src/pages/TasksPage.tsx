@@ -131,14 +131,27 @@ export default function TasksPage() {
         </div>
 
         {projects.length === 0 && !loading && (
-          <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-20">
-            <p className="text-muted-foreground">Create a project first to start adding tasks.</p>
+          <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-20 px-4 text-center">
+            <ListChecks className="mb-3 h-8 w-8 text-muted-foreground" />
+            <p className="mb-4 text-muted-foreground">Create a project first to start adding tasks.</p>
+            <Button size="sm" onClick={() => window.location.assign('/projects')} className="gap-1"><Plus className="h-3.5 w-3.5" /> New project</Button>
           </div>
         )}
 
+        {projects.length > 0 && !loading && tasks.length === 0 && (
+          <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-20 px-4 text-center">
+            <ListChecks className="mb-3 h-8 w-8 text-muted-foreground" />
+            <p className="mb-1 text-muted-foreground">No tasks yet.</p>
+            <p className="mb-4 text-xs text-muted-foreground">Track what needs doing across your home lab.</p>
+            <Button size="sm" onClick={openCreate} className="gap-1"><Plus className="h-3.5 w-3.5" /> New task</Button>
+          </div>
+        )}
+
+
         {loading ? (
           <div className="space-y-4">{[1, 2, 3].map(i => <Skeleton key={i} className="h-20 w-full rounded-xl" />)}</div>
-        ) : (
+        ) : tasks.length === 0 ? null : (
+
           <DragDropContext onDragEnd={handleDragEnd}>
             <div className="grid gap-6 lg:grid-cols-3">
               {(['TODO', 'IN_PROGRESS', 'DONE'] as TaskStatus[]).map(statusKey => {
