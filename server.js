@@ -124,6 +124,298 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// --- OpenAPI 3 spec (stable contract for assistants / agents) ---
+const OPENAPI_SPEC = {
+  openapi: '3.0.3',
+  info: {
+    title: 'Labyrinth API',
+    version: '1.0.0',
+    description:
+      'Home-lab knowledge store. Use POST /api/capture for assistant writes — it auto-detects type and records provenance. Bearer auth is required only when LABYRINTH_API_KEY is set on the server.',
+  },
+  servers: [{ url: '/', description: 'This Labyrinth server' }],
+  components: {
+    securitySchemes: {
+      bearerAuth: { type: 'http', scheme: 'bearer', description: 'LABYRINTH_API_KEY' },
+      apiKeyHeader: { type: 'apiKey', in: 'header', name: 'x-api-key', description: 'LABYRINTH_API_KEY' },
+    },
+    schemas: {
+      BaseMeta: {
+        type: 'object',
+        properties: {
+          tags: { type: 'array', items: { type: 'string' } },
+          source: { type: 'string', enum: ['manual', 'assistant', 'import', 'api'] },
+          createdBy: { type: 'string' },
+          updatedBy: { type: 'string' },
+          externalRef: { type: 'string', description: 'Pointer to originating system (ticket id, URL, ...)' },
+          notes: { type: 'string' },
+        },
+      },
+      Project: {
+        type: 'object',
+        required: ['id', 'name', 'color'],
+        properties: {
+          id: { type: 'string' },
+          name: { type: 'string' },
+          description: { type: 'string' },
+          color: { type: 'string' },
+          createdAt: { type: 'string', format: 'date-time' },
+          updatedAt: { type: 'string', format: 'date-time' },
+        },
+      },
+      Document: {
+        allOf: [
+          { $ref: '#/components/schemas/BaseMeta' },
+          {
+            type: 'object',
+            required: ['id', 'title', 'content'],
+            properties: {
+              id: { type: 'string' },
+              title: { type: 'string' },
+              content: { type: 'string', description: 'Markdown body' },
+              projectId: { type: 'string', nullable: true },
+              createdAt: { type: 'string', format: 'date-time' },
+              updatedAt: { type: 'string', format: 'date-time' },
+            },
+          },
+        ],
+      },
+      Snippet: {
+        allOf: [
+          { $ref: '#/components/schemas/BaseMeta' },
+          {
+            type: 'object',
+            required: ['id', 'title', 'code', 'language'],
+            properties: {
+              id: { type: 'string' },
+              title: { type: 'string' },
+              code: { type: 'string' },
+              language: { type: 'string', enum: ['BASH', 'YAML', 'PYTHON'] },
+              projectId: { type: 'string', nullable: true },
+              createdAt: { type: 'string', format: 'date-time' },
+              updatedAt: { type: 'string', format: 'date-time' },
+            },
+          },
+        ],
+      },
+      ChecklistItem: {
+        type: 'object',
+        required: ['id', 'text', 'done'],
+        properties: {
+          id: { type: 'string' },
+          text: { type: 'string' },
+          done: { type: 'boolean' },
+        },
+      },
+      Task: {
+        allOf: [
+          { $ref: '#/components/schemas/BaseMeta' },
+          {
+            type: 'object',
+            required: ['id', 'title', 'status', 'priority', 'projectId'],
+            properties: {
+              id: { type: 'string' },
+              title: { type: 'string' },
+              description: { type: 'string' },
+              status: { type: 'string', enum: ['TODO', 'IN_PROGRESS', 'DONE'] },
+              priority: { type: 'string', enum: ['LOW', 'MEDIUM', 'HIGH'] },
+              projectId: { type: 'string' },
+              dueDate: { type: 'string', format: 'date-time' },
+              checklist: { type: 'array', items: { $ref: '#/components/schemas/ChecklistItem' } },
+              createdAt: { type: 'string', format: 'date-time' },
+              updatedAt: { type: 'string', format: 'date-time' },
+            },
+          },
+        ],
+      },
+      MediaItem: {
+        type: 'object',
+        required: ['id', 'title', 'url', 'type'],
+        properties: {
+          id: { type: 'string' },
+          title: { type: 'string' },
+          url: { type: 'string', description: 'Public URL or data: URI' },
+          type: { type: 'string', description: "MIME family, e.g. 'image'" },
+          projectId: { type: 'string', nullable: true },
+          createdAt: { type: 'string', format: 'date-time' },
+        },
+      },
+      Revision: {
+        type: 'object',
+        required: ['revisionId', 'timestamp', 'snapshot'],
+        properties: {
+          revisionId: { type: 'string' },
+          timestamp: { type: 'string', format: 'date-time' },
+          updatedBy: { type: 'string', nullable: true },
+          source: { type: 'string', enum: ['manual', 'assistant', 'import', 'api'] },
+          snapshot: { type: 'object', additionalProperties: true },
+        },
+      },
+      AuditEntry: {
+        type: 'object',
+        required: ['id', 'timestamp', 'action', 'collection', 'source'],
+        properties: {
+          id: { type: 'string' },
+          timestamp: { type: 'string', format: 'date-time' },
+          action: { type: 'string', enum: ['create', 'update', 'delete', 'capture', 'restore'] },
+          collection: { type: 'string', enum: VALID_COLLECTIONS },
+          source: { type: 'string' },
+          title: { type: 'string' },
+          type: { type: 'string' },
+        },
+      },
+      CaptureRequest: {
+        type: 'object',
+        description: 'Unified write — assistant/agent entry point.',
+        properties: {
+          type: {
+            type: 'string',
+            enum: ['auto', 'document', 'snippet', 'task'],
+            default: 'auto',
+            description: '`auto` detects from content shape.',
+          },
+          title: { type: 'string', description: 'Optional — first line of body is used if blank.' },
+          content: { type: 'string', description: 'Document body / generic content (markdown).' },
+          code: { type: 'string', description: 'Snippet body (alias for content).' },
+          description: { type: 'string', description: 'Task body.' },
+          language: { type: 'string', enum: ['BASH', 'YAML', 'PYTHON'], description: 'Snippet language (auto-detected if omitted).' },
+          projectId: { type: 'string', nullable: true, description: 'Required for tasks; defaults to first project.' },
+          status: { type: 'string', enum: ['TODO', 'IN_PROGRESS', 'DONE'] },
+          priority: { type: 'string', enum: ['LOW', 'MEDIUM', 'HIGH'] },
+          dueDate: { type: 'string', format: 'date-time' },
+          checklist: { type: 'array', items: { $ref: '#/components/schemas/ChecklistItem' } },
+          tags: { oneOf: [{ type: 'array', items: { type: 'string' } }, { type: 'string', description: 'Comma-separated' }] },
+          source: { type: 'string', default: 'assistant' },
+          createdBy: { type: 'string', description: 'Identifies the calling agent/user.' },
+          externalRef: { type: 'string' },
+          notes: { type: 'string' },
+        },
+      },
+      CaptureResponse: {
+        type: 'object',
+        required: ['type', 'collection', 'item'],
+        properties: {
+          type: { type: 'string', enum: ['document', 'snippet', 'task'] },
+          collection: { type: 'string' },
+          item: { type: 'object', additionalProperties: true },
+        },
+      },
+      Health: {
+        type: 'object',
+        properties: {
+          status: { type: 'string' },
+          dataDir: { type: 'string' },
+          collections: { type: 'array', items: { type: 'string' } },
+          apiKeyRequired: { type: 'boolean' },
+          features: { type: 'array', items: { type: 'string' } },
+        },
+      },
+      Error: {
+        type: 'object',
+        properties: { error: { type: 'string' } },
+      },
+    },
+  },
+  paths: {
+    '/api/health': {
+      get: {
+        summary: 'Server health & feature flags',
+        tags: ['system'],
+        responses: { '200': { description: 'OK', content: { 'application/json': { schema: { $ref: '#/components/schemas/Health' } } } } },
+      },
+    },
+    '/api/openapi.json': {
+      get: {
+        summary: 'This OpenAPI spec',
+        tags: ['system'],
+        responses: { '200': { description: 'OpenAPI 3 document', content: { 'application/json': {} } } },
+      },
+    },
+    '/api/capture': {
+      post: {
+        summary: 'Unified assistant write — create a document, snippet, or task',
+        tags: ['capture'],
+        security: [{ bearerAuth: [] }, { apiKeyHeader: [] }],
+        requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/CaptureRequest' } } } },
+        responses: {
+          '200': { description: 'Captured', content: { 'application/json': { schema: { $ref: '#/components/schemas/CaptureResponse' } } } },
+          '400': { description: 'Validation error', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+          '401': { description: 'Missing or invalid API key', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+        },
+      },
+    },
+    '/api/audit': {
+      get: {
+        summary: 'Audit log of assistant / API / import writes',
+        tags: ['audit'],
+        responses: { '200': { description: 'Entries', content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/AuditEntry' } } } } } },
+      },
+    },
+    '/api/{collection}': {
+      parameters: [{ name: 'collection', in: 'path', required: true, schema: { type: 'string', enum: VALID_COLLECTIONS } }],
+      get: {
+        summary: 'List all items in a collection',
+        tags: ['crud'],
+        responses: { '200': { description: 'Array of items', content: { 'application/json': { schema: { type: 'array', items: { type: 'object', additionalProperties: true } } } } } },
+      },
+      post: {
+        summary: 'Create an item',
+        tags: ['crud'],
+        requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', additionalProperties: true } } } },
+        responses: { '201': { description: 'Created' } },
+      },
+    },
+    '/api/{collection}/{id}': {
+      parameters: [
+        { name: 'collection', in: 'path', required: true, schema: { type: 'string', enum: VALID_COLLECTIONS } },
+        { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+      ],
+      put: {
+        summary: 'Update an item (creates a revision snapshot for documents/snippets/tasks)',
+        tags: ['crud'],
+        requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', additionalProperties: true } } } },
+        responses: { '200': { description: 'Updated' }, '404': { description: 'Not found' } },
+      },
+      delete: {
+        summary: 'Delete an item',
+        tags: ['crud'],
+        responses: { '204': { description: 'Deleted' } },
+      },
+    },
+    '/api/{collection}/{id}/revisions': {
+      parameters: [
+        { name: 'collection', in: 'path', required: true, schema: { type: 'string', enum: ['documents', 'snippets', 'tasks'] } },
+        { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+      ],
+      get: {
+        summary: 'List prior snapshots, newest first',
+        tags: ['revisions'],
+        security: [{ bearerAuth: [] }, { apiKeyHeader: [] }],
+        responses: { '200': { description: 'Revisions', content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/Revision' } } } } } },
+      },
+    },
+    '/api/{collection}/{id}/restore/{revisionId}': {
+      parameters: [
+        { name: 'collection', in: 'path', required: true, schema: { type: 'string', enum: ['documents', 'snippets', 'tasks'] } },
+        { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+        { name: 'revisionId', in: 'path', required: true, schema: { type: 'string' } },
+      ],
+      post: {
+        summary: 'Restore a snapshot (saves current state as a new revision first)',
+        tags: ['revisions'],
+        security: [{ bearerAuth: [] }, { apiKeyHeader: [] }],
+        responses: { '200': { description: 'Restored item' }, '404': { description: 'Not found' } },
+      },
+    },
+  },
+};
+
+app.get('/api/openapi.json', (req, res) => {
+  res.json({ ...OPENAPI_SPEC, info: { ...OPENAPI_SPEC.info, 'x-apiKeyRequired': !!API_KEY } });
+});
+
+
+
 // --- CRUD ---
 app.get('/api/:collection', validateCollection, (req, res) => {
   res.json(readCollection(req.params.collection));
