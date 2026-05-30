@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { FileText, Code2, ListTodo, Sparkles, X } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { FileText, Code2, ListTodo, Sparkles, X, Image as ImageIcon } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,8 +9,10 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { useCapture } from '@/hooks/use-capture';
-import { projectStore, documentStore, snippetStore, taskStore } from '@/lib/store';
+import { projectStore, documentStore, snippetStore, taskStore, mediaStore } from '@/lib/store';
 import { Project, SnippetLanguage } from '@/lib/types';
+
+const LAST_PROJECT_KEY = 'labyrinth:lastProjectId';
 
 type CaptureType = 'auto' | 'document' | 'snippet' | 'task';
 
@@ -40,6 +42,14 @@ function stripFences(text: string) {
   const m = text.trim().match(/^```\w*\n([\s\S]*?)\n```$/);
   return m ? m[1] : text;
 }
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result));
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+}
 
 export default function CaptureDialog() {
   const { open, initialText, closeCapture } = useCapture();
@@ -52,13 +62,17 @@ export default function CaptureDialog() {
   const [notes, setNotes] = useState('');
   const [projects, setProjects] = useState<Project[]>([]);
   const [saving, setSaving] = useState(false);
+  const [pastedImage, setPastedImage] = useState<{ dataUrl: string; name: string } | null>(null);
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => { if (open) projectStore.getAll().then(setProjects); }, [open]);
 
   useEffect(() => {
     if (open) {
+      const remembered = (() => { try { return localStorage.getItem(LAST_PROJECT_KEY) || 'none'; } catch { return 'none'; } })();
       setType('auto'); setTitle(''); setBody(initialText || '');
-      setLanguage('BASH'); setProjectId('none'); setTags(''); setNotes('');
+      setLanguage('BASH'); setProjectId(remembered); setTags(''); setNotes('');
+      setPastedImage(null);
     }
   }, [open, initialText]);
 
@@ -76,14 +90,35 @@ export default function CaptureDialog() {
     [tags]
   );
 
+  const rememberProject = (pid: string | null) => {
+    try { localStorage.setItem(LAST_PROJECT_KEY, pid || 'none'); } catch { /* ignore */ }
+  };
+
+  const handlePaste = async (e: React.ClipboardEvent) => {
+    const items = Array.from(e.clipboardData?.items || []);
+    const imageItem = items.find(it => it.type.startsWith('image/'));
+    if (!imageItem) return;
+    const file = imageItem.getAsFile();
+    if (!file) return;
+    e.preventDefault();
+    try {
+      const dataUrl = await fileToDataUrl(file);
+      setPastedImage({ dataUrl, name: file.name || `pasted-${Date.now()}.png` });
+      toast.success('Image attached — will be saved to Media on capture');
+    } catch {
+      toast.error('Could not read pasted image');
+    }
+  };
+
   const handleSave = async () => {
-    if (!body.trim() && !title.trim()) {
-      toast.error('Add a title or some content first.');
+    if (!body.trim() && !title.trim() && !pastedImage) {
+      toast.error('Add a title, content, or image first.');
       return;
     }
     setSaving(true);
     try {
       const pid = projectId === 'none' ? null : projectId;
+      rememberProject(pid);
       const meta = {
         tags: tagList,
         source: 'manual' as const,
@@ -91,16 +126,42 @@ export default function CaptureDialog() {
         updatedBy: 'manual',
         ...(notes ? { notes } : {}),
       };
+
+      // If only an image was pasted (no text), save directly to media
+      if (pastedImage && !body.trim() && !title.trim()) {
+        await mediaStore.create({
+          title: pastedImage.name,
+          url: pastedImage.dataUrl,
+          type: 'image',
+          projectId: pid,
+        });
+        toast.success('Image saved to Media');
+        closeCapture();
+        return;
+      }
+
+      // If image + text, save image as media and add a markdown reference to body
+      let finalBody = body;
+      if (pastedImage) {
+        const m = await mediaStore.create({
+          title: pastedImage.name,
+          url: pastedImage.dataUrl,
+          type: 'image',
+          projectId: pid,
+        });
+        finalBody = `${body}\n\n![${m.title}](${m.url})`.trim();
+      }
+
       if (resolvedType === 'document') {
         await documentStore.create({
-          title: title || (body.split('\n')[0] || 'Untitled').slice(0, 80),
-          content: body, projectId: pid, ...meta,
+          title: title || (finalBody.split('\n')[0] || 'Untitled').slice(0, 80),
+          content: finalBody, projectId: pid, ...meta,
         });
         toast.success('Document captured');
       } else if (resolvedType === 'snippet') {
         await snippetStore.create({
           title: title || 'Untitled snippet',
-          language, code: stripFences(body), projectId: pid, ...meta,
+          language, code: stripFences(finalBody), projectId: pid, ...meta,
         });
         toast.success('Snippet captured');
       } else {
@@ -111,8 +172,8 @@ export default function CaptureDialog() {
           return;
         }
         await taskStore.create({
-          title: title || (body.split('\n')[0] || 'Untitled task').slice(0, 120),
-          description: title ? body : body.split('\n').slice(1).join('\n'),
+          title: title || (finalBody.split('\n')[0] || 'Untitled task').slice(0, 120),
+          description: title ? finalBody : finalBody.split('\n').slice(1).join('\n'),
           status: 'TODO', priority: 'MEDIUM', projectId: targetProject, ...meta,
         });
         toast.success('Task captured');
@@ -136,7 +197,7 @@ export default function CaptureDialog() {
   });
 
   const typeOptions: { value: CaptureType; label: string; icon: typeof Sparkles }[] = [
-    { value: 'auto', label: 'Auto-detect', icon: Sparkles },
+    { value: 'auto', label: 'Auto', icon: Sparkles },
     { value: 'document', label: 'Document', icon: FileText },
     { value: 'snippet', label: 'Snippet', icon: Code2 },
     { value: 'task', label: 'Task', icon: ListTodo },
@@ -144,13 +205,13 @@ export default function CaptureDialog() {
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && closeCapture()}>
-      <DialogContent className="bg-card border-border max-w-2xl">
+      <DialogContent className="bg-card border-border max-w-2xl w-[95vw] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-primary" /> Capture
           </DialogTitle>
           <DialogDescription>
-            Paste any content — Labyrinth will infer the best type, or pick one manually.
+            Paste content (or an image) — Labyrinth will infer the best type, or pick one manually.
           </DialogDescription>
         </DialogHeader>
 
@@ -187,18 +248,35 @@ export default function CaptureDialog() {
           />
 
           <Textarea
+            ref={bodyRef}
             placeholder={
               resolvedType === 'snippet'
                 ? 'Paste code (with or without ``` fences)...'
                 : resolvedType === 'task'
                 ? 'Task description, why it matters, links...'
-                : 'Markdown content...'
+                : 'Markdown content — or paste an image directly'
             }
             value={body}
             onChange={e => setBody(e.target.value)}
+            onPaste={handlePaste}
             rows={10}
             className="bg-secondary border-border font-mono text-sm"
           />
+
+          {pastedImage && (
+            <div className="flex items-center gap-3 rounded-md border border-border bg-secondary/40 p-2">
+              <img src={pastedImage.dataUrl} alt="pasted" className="h-12 w-12 rounded object-cover" />
+              <div className="min-w-0 flex-1">
+                <p className="flex items-center gap-1.5 text-xs font-medium text-foreground">
+                  <ImageIcon className="h-3 w-3" /> Image attached
+                </p>
+                <p className="truncate text-[11px] text-muted-foreground">{pastedImage.name} — saves to Media on capture</p>
+              </div>
+              <button onClick={() => setPastedImage(null)} className="rounded p-1 text-muted-foreground hover:text-destructive">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Select value={projectId} onValueChange={setProjectId}>
@@ -257,12 +335,12 @@ export default function CaptureDialog() {
             </div>
           )}
 
-          <div className="flex items-center justify-between pt-2">
+          <div className="flex flex-col-reverse items-stretch justify-between gap-2 pt-2 sm:flex-row sm:items-center">
             <span className="text-xs text-muted-foreground">⌘/Ctrl + Enter to save</span>
             <div className="flex gap-2">
-              <Button variant="ghost" onClick={closeCapture}><X className="mr-1 h-3.5 w-3.5" />Cancel</Button>
-              <Button onClick={handleSave} disabled={saving}>
-                {saving ? 'Saving...' : `Capture as ${resolvedType}`}
+              <Button variant="ghost" onClick={closeCapture} className="flex-1 sm:flex-none"><X className="mr-1 h-3.5 w-3.5" />Cancel</Button>
+              <Button onClick={handleSave} disabled={saving} className="flex-1 sm:flex-none">
+                {saving ? 'Saving...' : pastedImage && !body.trim() && !title.trim() ? 'Save image to Media' : `Capture as ${resolvedType}`}
               </Button>
             </div>
           </div>
