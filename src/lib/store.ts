@@ -1,4 +1,4 @@
-import { Project, Document, Snippet, MediaItem, Task } from './types';
+import { Project, Document, Snippet, MediaItem, Task, Conversation } from './types';
 import { isApiAvailable, apiGetAll, apiCreate, apiUpdate, apiDelete } from './api';
 
 const KEYS = {
@@ -7,6 +7,7 @@ const KEYS = {
   snippets: 'labyrinth_snippets',
   media: 'labyrinth_media',
   tasks: 'labyrinth_tasks',
+  conversations: 'labyrinth_conversations',
 };
 
 function getLocal<T>(key: string): T[] {
