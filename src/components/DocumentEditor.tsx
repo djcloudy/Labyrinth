@@ -87,6 +87,11 @@ export default function DocumentEditor({ open, onOpenChange, editing, projects, 
                 autoFocus={!editing}
               />
             </div>
+            {editing && (
+              <Button variant="ghost" size="sm" onClick={() => setHistoryOpen(true)} title="Revision history">
+                <History className="h-4 w-4" />
+              </Button>
+            )}
             <Button variant="ghost" size="sm" onClick={() => setShowPreview(p => !p)} title="Toggle preview (⌘P)">
               {showPreview ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </Button>
