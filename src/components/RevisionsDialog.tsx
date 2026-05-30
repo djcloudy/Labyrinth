@@ -8,7 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { apiGetRevisions, apiRestoreRevision } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
-type CollectionName = 'documents' | 'snippets' | 'tasks';
+type CollectionName = 'documents' | 'snippets' | 'tasks' | 'knowledge';
 
 interface Revision {
   revisionId: string;
@@ -37,6 +37,9 @@ function snapshotPreview(collection: CollectionName, snap: Record<string, unknow
     if (Array.isArray(snap.checklist)) parts.push(`Checklist: ${snap.checklist.length} items`);
     if (snap.description) parts.push(`\n${snap.description}`);
     return parts.join(' · ');
+  }
+  if (collection === 'knowledge') {
+    return String(snap.content ?? snap.code ?? snap.description ?? snap.url ?? '');
   }
   return String(snap.content ?? '');
 }

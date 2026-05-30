@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, FolderKanban, FileText, Code2, Image, Bot, Settings, ChevronRight, ListTodo, Sparkles, Activity } from 'lucide-react';
+import { LayoutDashboard, FolderKanban, FileText, Code2, Image, Bot, Settings, ChevronRight, ListTodo, Sparkles, Activity, BookOpen } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useCapture } from '@/hooks/use-capture';
 
@@ -11,6 +11,7 @@ const navItems = [
   { to: '/snippets', label: 'Snippets', icon: Code2 },
   { to: '/media', label: 'Media', icon: Image },
   { to: '/ai-hub', label: 'AI Hub', icon: Bot },
+  { to: '/knowledge', label: 'Knowledge', icon: BookOpen },
   { to: '/audit', label: 'Audit', icon: Activity },
   { to: '/settings', label: 'Settings', icon: Settings },
 ];

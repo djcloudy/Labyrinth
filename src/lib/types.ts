@@ -104,3 +104,26 @@ export interface Conversation {
   createdAt: string;
   updatedAt: string;
 }
+
+export type KnowledgeKind = 'note' | 'snippet' | 'image' | 'link';
+
+export interface KnowledgeEntry extends BaseMeta {
+  id: string;
+  kind: KnowledgeKind;
+  title: string;
+  tags: string[];
+  /** note: markdown body */
+  content?: string;
+  /** snippet: code body */
+  code?: string;
+  /** snippet: language */
+  language?: SnippetLanguage;
+  /** image: data url; link: external url */
+  url?: string;
+  /** image: mime type */
+  mediaType?: string;
+  /** link: short description */
+  description?: string;
+  createdAt: string;
+  updatedAt: string;
+}

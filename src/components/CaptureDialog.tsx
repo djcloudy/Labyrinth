@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { FileText, Code2, ListTodo, Sparkles, X, Image as ImageIcon } from 'lucide-react';
+import { FileText, Code2, ListTodo, Sparkles, X, Image as ImageIcon, BookOpen } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,8 +9,8 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { useCapture } from '@/hooks/use-capture';
-import { projectStore, documentStore, snippetStore, taskStore, mediaStore } from '@/lib/store';
-import { Project, SnippetLanguage } from '@/lib/types';
+import { projectStore, documentStore, snippetStore, taskStore, mediaStore, knowledgeStore } from '@/lib/store';
+import { Project, SnippetLanguage, KnowledgeKind } from '@/lib/types';
 
 const LAST_PROJECT_KEY = 'labyrinth:lastProjectId';
 
@@ -63,6 +63,7 @@ export default function CaptureDialog() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [saving, setSaving] = useState(false);
   const [pastedImage, setPastedImage] = useState<{ dataUrl: string; name: string } | null>(null);
+  const [saveToKnowledge, setSaveToKnowledge] = useState(false);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => { if (open) projectStore.getAll().then(setProjects); }, [open]);
@@ -72,7 +73,7 @@ export default function CaptureDialog() {
       const remembered = (() => { try { return localStorage.getItem(LAST_PROJECT_KEY) || 'none'; } catch { return 'none'; } })();
       setType('auto'); setTitle(''); setBody(initialText || '');
       setLanguage('BASH'); setProjectId(remembered); setTags(''); setNotes('');
-      setPastedImage(null);
+      setPastedImage(null); setSaveToKnowledge(false);
     }
   }, [open, initialText]);
 
@@ -126,6 +127,48 @@ export default function CaptureDialog() {
         updatedBy: 'manual',
         ...(notes ? { notes } : {}),
       };
+
+      // Save directly to Knowledge Base if requested — no project linkage
+      if (saveToKnowledge) {
+        const baseMeta = { tags: tagList, source: 'manual' as const, ...(notes ? { notes } : {}) };
+        if (pastedImage && !body.trim() && !title.trim()) {
+          await knowledgeStore.create({
+            kind: 'image' as KnowledgeKind,
+            title: pastedImage.name,
+            url: pastedImage.dataUrl,
+            mediaType: 'image',
+            ...baseMeta,
+          });
+        } else if (resolvedType === 'snippet') {
+          await knowledgeStore.create({
+            kind: 'snippet' as KnowledgeKind,
+            title: title || 'Untitled snippet',
+            code: stripFences(body),
+            language,
+            ...baseMeta,
+          });
+        } else if (pastedImage) {
+          // Image + text → save image entry, body becomes a separate note
+          await knowledgeStore.create({
+            kind: 'image' as KnowledgeKind,
+            title: pastedImage.name,
+            url: pastedImage.dataUrl,
+            mediaType: 'image',
+            description: body,
+            ...baseMeta,
+          });
+        } else {
+          await knowledgeStore.create({
+            kind: 'note' as KnowledgeKind,
+            title: title || (body.split('\n')[0] || 'Untitled').slice(0, 80),
+            content: body,
+            ...baseMeta,
+          });
+        }
+        toast.success('Saved to Knowledge Base');
+        closeCapture();
+        return;
+      }
 
       // If only an image was pasted (no text), save directly to media
       if (pastedImage && !body.trim() && !title.trim()) {
@@ -278,9 +321,26 @@ export default function CaptureDialog() {
             </div>
           )}
 
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setSaveToKnowledge(v => !v)}
+              className={cn(
+                'flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs transition-colors',
+                saveToKnowledge
+                  ? 'border-primary bg-primary/15 text-primary'
+                  : 'border-border bg-secondary text-muted-foreground hover:text-foreground'
+              )}
+              title="Save as general knowledge (no project)"
+            >
+              <BookOpen className="h-3.5 w-3.5" />
+              Save to Knowledge Base
+            </button>
+          </div>
+
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Select value={projectId} onValueChange={setProjectId}>
-              <SelectTrigger className="bg-secondary border-border">
+            <Select value={projectId} onValueChange={setProjectId} disabled={saveToKnowledge}>
+              <SelectTrigger className={cn('bg-secondary border-border', saveToKnowledge && 'opacity-50')}>
                 <SelectValue placeholder="Link to project" />
               </SelectTrigger>
               <SelectContent className="bg-card border-border">
@@ -340,7 +400,10 @@ export default function CaptureDialog() {
             <div className="flex gap-2">
               <Button variant="ghost" onClick={closeCapture} className="flex-1 sm:flex-none"><X className="mr-1 h-3.5 w-3.5" />Cancel</Button>
               <Button onClick={handleSave} disabled={saving} className="flex-1 sm:flex-none">
-                {saving ? 'Saving...' : pastedImage && !body.trim() && !title.trim() ? 'Save image to Media' : `Capture as ${resolvedType}`}
+                {saving ? 'Saving...'
+                  : saveToKnowledge ? 'Save to Knowledge Base'
+                  : pastedImage && !body.trim() && !title.trim() ? 'Save image to Media'
+                  : `Capture as ${resolvedType}`}
               </Button>
             </div>
           </div>

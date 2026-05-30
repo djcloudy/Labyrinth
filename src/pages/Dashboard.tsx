@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
-import { FolderKanban, FileText, Code2, Image, Bot, ListTodo } from 'lucide-react';
+import { FolderKanban, FileText, Code2, Image, Bot, ListTodo, BookOpen } from 'lucide-react';
 import AppLayout from '@/components/AppLayout';
-import { projectStore, documentStore, snippetStore, mediaStore, taskStore } from '@/lib/store';
+import { projectStore, documentStore, snippetStore, mediaStore, taskStore, knowledgeStore } from '@/lib/store';
 import { useStore } from '@/hooks/use-store';
 import { useCallback } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -13,33 +13,40 @@ export default function Dashboard() {
   const { data: snippets, loading: loadingSnippets } = useStore(useCallback(() => snippetStore.getAll(), []));
   const { data: media, loading: loadingMedia } = useStore(useCallback(() => mediaStore.getAll(), []));
   const { data: tasks, loading: loadingTasks } = useStore(useCallback(() => taskStore.getAll(), []));
+  const { data: knowledge, loading: loadingKnowledge } = useStore(useCallback(() => knowledgeStore.getAll(), []));
 
-  const loading = loadingProjects || loadingDocs || loadingSnippets || loadingMedia || loadingTasks;
+  const loading = loadingProjects || loadingDocs || loadingSnippets || loadingMedia || loadingTasks || loadingKnowledge;
 
   const stats = [
-    { label: 'PROJECTS', count: projects.length, icon: FolderKanban, colorVar: 'text-primary' },
-    { label: 'TASKS', count: tasks.length, icon: ListTodo, colorVar: 'text-warning' },
-    { label: 'DOCUMENTS', count: documents.length, icon: FileText, colorVar: 'text-info' },
-    { label: 'SNIPPETS', count: snippets.length, icon: Code2, colorVar: 'text-success' },
-    { label: 'MEDIA', count: media.length, icon: Image, colorVar: 'text-destructive' },
+    { label: 'PROJECTS', count: projects.length, icon: FolderKanban, colorVar: 'text-primary', to: '/projects' },
+    { label: 'TASKS', count: tasks.length, icon: ListTodo, colorVar: 'text-warning', to: '/tasks' },
+    { label: 'DOCUMENTS', count: documents.length, icon: FileText, colorVar: 'text-info', to: '/documents' },
+    { label: 'SNIPPETS', count: snippets.length, icon: Code2, colorVar: 'text-success', to: '/snippets' },
+    { label: 'MEDIA', count: media.length, icon: Image, colorVar: 'text-destructive', to: '/media' },
+    { label: 'KNOWLEDGE', count: knowledge.length, icon: BookOpen, colorVar: 'text-primary', to: '/knowledge' },
   ];
 
   const recentProjects = [...projects].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()).slice(0, 5);
+  const recentKnowledge = [...knowledge].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()).slice(0, 5);
 
   return (
     <AppLayout>
       <div className="animate-fade-in">
         <h1 className="mb-8 text-3xl font-bold text-foreground">Overview</h1>
 
-        <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
-          {stats.map(({ label, count, icon: Icon, colorVar }) => (
-            <div key={label} className="rounded-xl border border-border bg-card p-5 transition-colors hover:border-primary/30">
+        <div className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+          {stats.map(({ label, count, icon: Icon, colorVar, to }) => (
+            <button
+              key={label}
+              onClick={() => navigate(to)}
+              className="rounded-xl border border-border bg-card p-5 text-left transition-colors hover:border-primary/30"
+            >
               <div className="flex items-center justify-between mb-3">
                 <span className="text-xs font-semibold tracking-widest text-muted-foreground">{label}</span>
                 <Icon className={`h-5 w-5 ${colorVar}`} />
               </div>
               {loading ? <Skeleton className="h-10 w-16" /> : <p className="text-4xl font-bold text-foreground">{count}</p>}
-            </div>
+            </button>
           ))}
         </div>
 
@@ -76,14 +83,43 @@ export default function Dashboard() {
             )}
           </div>
 
-          <div className="flex flex-col items-center justify-center rounded-xl border border-border bg-card p-5">
-            <Bot className="mb-4 h-10 w-10 text-primary" />
-            <button
-              onClick={() => navigate('/ai-hub')}
-              className="rounded-lg bg-primary px-8 py-3 text-sm font-bold tracking-wide text-primary-foreground hover:bg-primary/90 transition-colors"
-            >
-              LAUNCH AI HUB
-            </button>
+          <div className="flex flex-col gap-4">
+            <div className="rounded-xl border border-border bg-card p-5">
+              <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
+                <BookOpen className="h-4 w-4 text-primary" />
+                Recent Knowledge
+              </h2>
+              {loading ? (
+                <div className="space-y-2">{[1, 2, 3].map(i => <Skeleton key={i} className="h-8 w-full" />)}</div>
+              ) : recentKnowledge.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  Nothing yet. <button onClick={() => navigate('/knowledge')} className="text-primary hover:underline">Add an entry</button>
+                </p>
+              ) : (
+                <div className="space-y-1">
+                  {recentKnowledge.map(k => (
+                    <button
+                      key={k.id}
+                      onClick={() => navigate(`/knowledge?entry=${k.id}`)}
+                      className="block w-full truncate rounded px-2 py-1.5 text-left text-xs text-muted-foreground hover:bg-secondary hover:text-foreground"
+                    >
+                      <span className="uppercase mr-2 text-[9px] tracking-wider text-primary">{k.kind}</span>
+                      {k.title}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-col items-center justify-center rounded-xl border border-border bg-card p-5">
+              <Bot className="mb-4 h-10 w-10 text-primary" />
+              <button
+                onClick={() => navigate('/ai-hub')}
+                className="rounded-lg bg-primary px-8 py-3 text-sm font-bold tracking-wide text-primary-foreground hover:bg-primary/90 transition-colors"
+              >
+                LAUNCH AI HUB
+              </button>
+            </div>
           </div>
         </div>
       </div>

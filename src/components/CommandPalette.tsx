@@ -1,21 +1,22 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileText, Code2, ListTodo, Sparkles, FolderKanban, Image, Bot, Settings, LayoutDashboard, Activity } from 'lucide-react';
+import { FileText, Code2, ListTodo, Sparkles, FolderKanban, Image, Bot, Settings, LayoutDashboard, Activity, BookOpen, Link2, Image as ImageIcon } from 'lucide-react';
 import {
   CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator,
 } from '@/components/ui/command';
 import { useCapture } from '@/hooks/use-capture';
 import { apiGetAll } from '@/lib/api';
-import type { Document, Snippet, Task, Project } from '@/lib/types';
+import type { Document, Snippet, Task, Project, KnowledgeEntry } from '@/lib/types';
 
 interface SearchIndex {
   documents: Document[];
   snippets: Snippet[];
   tasks: Task[];
   projects: Project[];
+  knowledge: KnowledgeEntry[];
 }
 
-const EMPTY: SearchIndex = { documents: [], snippets: [], tasks: [], projects: [] };
+const EMPTY: SearchIndex = { documents: [], snippets: [], tasks: [], projects: [], knowledge: [] };
 
 export default function CommandPalette() {
   const [open, setOpen] = useState(false);
@@ -43,8 +44,9 @@ export default function CommandPalette() {
       apiGetAll<Snippet>('snippets').catch(() => []),
       apiGetAll<Task>('tasks').catch(() => []),
       apiGetAll<Project>('projects').catch(() => []),
-    ]).then(([documents, snippets, tasks, projects]) => {
-      setIndex({ documents, snippets, tasks, projects });
+      apiGetAll<KnowledgeEntry>('knowledge').catch(() => []),
+    ]).then(([documents, snippets, tasks, projects, knowledge]) => {
+      setIndex({ documents, snippets, tasks, projects, knowledge });
     });
   }, [open]);
 
@@ -63,6 +65,7 @@ export default function CommandPalette() {
       documents: index.documents.filter(d => match(d.title, d.content)).slice(0, 8),
       snippets: index.snippets.filter(s => match(s.title, s.code, s.language)).slice(0, 8),
       tasks: index.tasks.filter(t => match(t.title, t.description, ...(t.tags || []))).slice(0, 8),
+      knowledge: index.knowledge.filter(k => match(k.title, k.content, k.code, k.description, k.url, ...(k.tags || []))).slice(0, 8),
     };
   }, [hasQuery, q, index]);
 
@@ -90,6 +93,7 @@ export default function CommandPalette() {
               <CommandItem onSelect={() => go('/snippets')}><Code2 className="mr-2 h-4 w-4" /> Snippets</CommandItem>
               <CommandItem onSelect={() => go('/media')}><Image className="mr-2 h-4 w-4" /> Media</CommandItem>
               <CommandItem onSelect={() => go('/ai-hub')}><Bot className="mr-2 h-4 w-4" /> AI Hub</CommandItem>
+              <CommandItem onSelect={() => go('/knowledge')}><BookOpen className="mr-2 h-4 w-4" /> Knowledge Base</CommandItem>
               <CommandItem onSelect={() => go('/audit')}><Activity className="mr-2 h-4 w-4" /> Audit trail</CommandItem>
               <CommandItem onSelect={() => go('/settings')}><Settings className="mr-2 h-4 w-4" /> Settings</CommandItem>
             </CommandGroup>
@@ -145,6 +149,24 @@ export default function CommandPalette() {
                     </div>
                   </CommandItem>
                 ))}
+              </CommandGroup>
+            )}
+            {results.knowledge.length > 0 && (
+              <CommandGroup heading="Knowledge Base">
+                {results.knowledge.map(k => {
+                  const Icon = k.kind === 'snippet' ? Code2 : k.kind === 'image' ? ImageIcon : k.kind === 'link' ? Link2 : BookOpen;
+                  return (
+                    <CommandItem key={k.id} value={`kb-${k.id}-${k.title}`} onSelect={() => go(`/knowledge?entry=${k.id}`)}>
+                      <Icon className="mr-2 h-4 w-4 text-primary" />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate">{k.title}</p>
+                        <p className="truncate text-[11px] text-muted-foreground">
+                          {k.kind}{(k.tags || []).length ? ` · ${k.tags.join(', ')}` : ''}
+                        </p>
+                      </div>
+                    </CommandItem>
+                  );
+                })}
               </CommandGroup>
             )}
           </>
