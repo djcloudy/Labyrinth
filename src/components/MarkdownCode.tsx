@@ -1,50 +1,31 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Check, Copy } from 'lucide-react';
 import { copyWithToast } from '@/lib/clipboard';
-import { cn } from '@/lib/utils';
 
 /**
- * react-markdown `code` component renderer that adds a GitHub-style copy
- * button to fenced/block code samples. Inline code is rendered as-is.
+ * react-markdown `code` renderer. In react-markdown v9 the `inline` prop is
+ * no longer passed, so we infer inline vs block from the presence of a
+ * `language-*` class (which only fenced/block code carries).
  */
-export function MarkdownCode({ inline, className, children, ...props }: any) {
-  const [copied, setCopied] = useState(false);
-  const text = String(children ?? '').replace(/\n$/, '');
-
-  if (inline) {
-    return <code className={className} {...props}>{children}</code>;
-  }
-
-  const handleCopy = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    const ok = await copyWithToast(text, 'Code copied');
-    if (ok) {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    }
-  };
-
-  return (
-    <code className={cn(className, 'block')} {...props}>{children}</code>
-  );
+export function MarkdownCode({ className, children, ...props }: any) {
+  return <code className={className} {...props}>{children}</code>;
 }
 
-/** `pre` renderer that wraps the block with a positioned copy button. */
+/**
+ * `pre` renderer that wraps the block with a copy button. We read text
+ * directly from the rendered <pre> via a ref to avoid relying on the
+ * shape of `children`, which varies across react-markdown versions and
+ * syntax-highlighter plugins.
+ */
 export function MarkdownPre({ children, ...props }: any) {
   const [copied, setCopied] = useState(false);
-
-  // Extract raw text from the nested <code> child
-  const extractText = (node: any): string => {
-    if (node == null) return '';
-    if (typeof node === 'string') return node;
-    if (Array.isArray(node)) return node.map(extractText).join('');
-    if (node.props?.children) return extractText(node.props.children);
-    return '';
-  };
-  const text = extractText(children).replace(/\n$/, '');
+  const preRef = useRef<HTMLPreElement>(null);
 
   const handleCopy = async (e: React.MouseEvent) => {
     e.stopPropagation();
+    e.preventDefault();
+    const text = (preRef.current?.innerText ?? '').replace(/\n$/, '');
+    if (!text) return;
     const ok = await copyWithToast(text, 'Code copied');
     if (ok) {
       setCopied(true);
@@ -54,7 +35,7 @@ export function MarkdownPre({ children, ...props }: any) {
 
   return (
     <div className="group relative my-3">
-      <pre {...props}>{children}</pre>
+      <pre ref={preRef} {...props}>{children}</pre>
       <button
         type="button"
         onClick={handleCopy}
