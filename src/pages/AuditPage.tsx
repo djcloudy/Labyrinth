@@ -65,28 +65,28 @@ export default function AuditPage() {
   return (
     <AppLayout>
       <div className="animate-fade-in">
-        <div className="mb-8 flex items-center justify-between">
+        <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
-              <Activity className="h-7 w-7 text-primary" />
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground flex items-center gap-2">
+              <Activity className="h-6 w-6 sm:h-7 sm:w-7 text-primary" />
               Audit trail
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
               Every assistant- or API-initiated change to your lab data.
             </p>
           </div>
-          <Button variant="outline" size="sm" onClick={load} className="gap-2">
+          <Button variant="outline" size="sm" onClick={load} className="gap-2 self-start sm:self-auto">
             <RefreshCw className="h-3.5 w-3.5" /> Refresh
           </Button>
         </div>
 
-        <div className="mb-6 flex flex-wrap items-center gap-3">
-          <div className="relative min-w-[240px] flex-1">
+        <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto_auto_auto]">
+          <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input placeholder="Search by title or id..." value={search} onChange={e => setSearch(e.target.value)} className="bg-secondary border-border pl-9" />
           </div>
           <Select value={filterAction} onValueChange={setFilterAction}>
-            <SelectTrigger className="w-36 bg-secondary border-border"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-full sm:w-36 bg-secondary border-border"><SelectValue /></SelectTrigger>
             <SelectContent className="bg-card border-border">
               <SelectItem value="all">All actions</SelectItem>
               <SelectItem value="capture">capture</SelectItem>
@@ -96,7 +96,7 @@ export default function AuditPage() {
             </SelectContent>
           </Select>
           <Select value={filterCollection} onValueChange={setFilterCollection}>
-            <SelectTrigger className="w-40 bg-secondary border-border"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-full sm:w-40 bg-secondary border-border"><SelectValue /></SelectTrigger>
             <SelectContent className="bg-card border-border">
               <SelectItem value="all">All collections</SelectItem>
               <SelectItem value="documents">documents</SelectItem>
@@ -107,7 +107,7 @@ export default function AuditPage() {
             </SelectContent>
           </Select>
           <Select value={filterSource} onValueChange={setFilterSource}>
-            <SelectTrigger className="w-36 bg-secondary border-border"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-full sm:w-36 bg-secondary border-border"><SelectValue /></SelectTrigger>
             <SelectContent className="bg-card border-border">
               <SelectItem value="all">All sources</SelectItem>
               {sources.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
@@ -118,55 +118,90 @@ export default function AuditPage() {
         {loading ? (
           <div className="space-y-2">{[1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-14 w-full rounded-lg" />)}</div>
         ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-20">
+          <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-20 text-center px-4">
+            <Activity className="mb-3 h-8 w-8 text-muted-foreground" />
             <p className="text-muted-foreground">
-              {rows.length === 0 ? 'No assistant or API activity yet.' : 'No entries match your filters.'}
+              {rows.length === 0 ? 'No assistant or API activity yet. Capture something or POST to /api to populate the trail.' : 'No entries match your filters.'}
             </p>
           </div>
         ) : (
-          <div className="overflow-hidden rounded-xl border border-border bg-card">
-            <table className="w-full text-sm">
-              <thead className="bg-secondary/40 text-xs uppercase tracking-wide text-muted-foreground">
-                <tr>
-                  <th className="px-4 py-3 text-left font-medium">When</th>
-                  <th className="px-4 py-3 text-left font-medium">Action</th>
-                  <th className="px-4 py-3 text-left font-medium">Collection</th>
-                  <th className="px-4 py-3 text-left font-medium">Title</th>
-                  <th className="px-4 py-3 text-left font-medium">Source</th>
-                  <th className="px-4 py-3" />
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map(r => {
-                  const linkFn = COLLECTION_LINK[r.collection];
-                  return (
-                    <tr key={`${r.id}-${r.timestamp}`} className="border-t border-border hover:bg-secondary/30">
-                      <td className="px-4 py-3 text-muted-foreground whitespace-nowrap" title={new Date(r.timestamp).toLocaleString()}>
+          <>
+            {/* Desktop table */}
+            <div className="hidden md:block overflow-hidden rounded-xl border border-border bg-card">
+              <table className="w-full text-sm">
+                <thead className="bg-secondary/40 text-xs uppercase tracking-wide text-muted-foreground">
+                  <tr>
+                    <th className="px-4 py-3 text-left font-medium">When</th>
+                    <th className="px-4 py-3 text-left font-medium">Action</th>
+                    <th className="px-4 py-3 text-left font-medium">Collection</th>
+                    <th className="px-4 py-3 text-left font-medium">Title</th>
+                    <th className="px-4 py-3 text-left font-medium">Source</th>
+                    <th className="px-4 py-3" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map(r => {
+                    const linkFn = COLLECTION_LINK[r.collection];
+                    return (
+                      <tr key={`${r.id}-${r.timestamp}`} className="border-t border-border hover:bg-secondary/30">
+                        <td className="px-4 py-3 text-muted-foreground whitespace-nowrap" title={new Date(r.timestamp).toLocaleString()}>
+                          {formatDistanceToNow(new Date(r.timestamp), { addSuffix: true })}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={cn('rounded px-2 py-0.5 text-xs font-semibold', ACTION_STYLES[r.action] || 'bg-secondary text-muted-foreground')}>
+                            {r.action}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground">{r.collection}{r.type ? ` · ${r.type}` : ''}</td>
+                        <td className="px-4 py-3 text-foreground truncate max-w-[320px]">{r.title || <span className="text-muted-foreground italic">—</span>}</td>
+                        <td className="px-4 py-3 text-muted-foreground">{r.source}</td>
+                        <td className="px-4 py-3 text-right">
+                          {linkFn && r.action !== 'delete' && (
+                            <Link to={linkFn(r.id)} className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
+                              Open <ArrowUpRight className="h-3 w-3" />
+                            </Link>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile cards */}
+            <div className="md:hidden space-y-2">
+              {filtered.map(r => {
+                const linkFn = COLLECTION_LINK[r.collection];
+                return (
+                  <div key={`${r.id}-${r.timestamp}`} className="rounded-lg border border-border bg-card p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className={cn('rounded px-2 py-0.5 text-xs font-semibold', ACTION_STYLES[r.action] || 'bg-secondary text-muted-foreground')}>
+                        {r.action}
+                      </span>
+                      <span className="text-[11px] text-muted-foreground" title={new Date(r.timestamp).toLocaleString()}>
                         {formatDistanceToNow(new Date(r.timestamp), { addSuffix: true })}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={cn('rounded px-2 py-0.5 text-xs font-semibold', ACTION_STYLES[r.action] || 'bg-secondary text-muted-foreground')}>
-                          {r.action}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-muted-foreground">{r.collection}{r.type ? ` · ${r.type}` : ''}</td>
-                      <td className="px-4 py-3 text-foreground truncate max-w-[320px]">{r.title || <span className="text-muted-foreground italic">—</span>}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{r.source}</td>
-                      <td className="px-4 py-3 text-right">
-                        {linkFn && r.action !== 'delete' && (
-                          <Link to={linkFn(r.id)} className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
-                            Open <ArrowUpRight className="h-3 w-3" />
-                          </Link>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                      </span>
+                    </div>
+                    <p className="mt-2 text-sm text-foreground break-words">
+                      {r.title || <span className="text-muted-foreground italic">—</span>}
+                    </p>
+                    <div className="mt-1 flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+                      <span>{r.collection}{r.type ? ` · ${r.type}` : ''} · {r.source}</span>
+                      {linkFn && r.action !== 'delete' && (
+                        <Link to={linkFn(r.id)} className="inline-flex items-center gap-1 text-primary hover:underline">
+                          Open <ArrowUpRight className="h-3 w-3" />
+                        </Link>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
         )}
       </div>
     </AppLayout>
   );
 }
+
