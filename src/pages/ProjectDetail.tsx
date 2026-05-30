@@ -154,6 +154,9 @@ export default function ProjectDetail() {
           <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground">
             <Code2 className="h-3 w-3 text-success" /> {snippets.length} {snippets.length === 1 ? 'snippet' : 'snippets'}
           </span>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground">
+            <Image className="h-3 w-3 text-primary" /> {media.length} {media.length === 1 ? 'media' : 'media'}
+          </span>
           {tasks.length > 0 && (
             <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground">
               <CheckCircle2 className="h-3 w-3 text-success" /> {percent}% done
@@ -173,8 +176,8 @@ export default function ProjectDetail() {
         )}
 
         {/* Search + tag filter within project */}
-        {(docs.length + tasks.length + snippets.length > 0) && (
-          <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-center">
+        {(docs.length + tasks.length + snippets.length + media.length > 0) && (
+          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input placeholder="Search this project..." value={search} onChange={e => setSearch(e.target.value)} className="bg-secondary border-border pl-9" />
@@ -198,6 +201,25 @@ export default function ProjectDetail() {
             )}
           </div>
         )}
+
+        {/* Section visibility toggles */}
+        <div className="mb-6 flex flex-wrap items-center gap-2">
+          <span className="text-xs text-muted-foreground mr-1">Show:</span>
+          <ToggleGroup type="multiple" value={visibleSections} onValueChange={setVisibleSections} className="flex flex-wrap gap-1.5">
+            <ToggleGroupItem value="docs" className="data-[state=on]:bg-info/15 data-[state=on]:text-info data-[state=on]:border-info/30 border border-border bg-card px-3 py-1 text-xs rounded-full transition-colors flex items-center gap-1.5">
+              <FileText className="h-3 w-3" /> Documents
+            </ToggleGroupItem>
+            <ToggleGroupItem value="tasks" className="data-[state=on]:bg-warning/15 data-[state=on]:text-warning data-[state=on]:border-warning/30 border border-border bg-card px-3 py-1 text-xs rounded-full transition-colors flex items-center gap-1.5">
+              <ListTodo className="h-3 w-3" /> Tasks
+            </ToggleGroupItem>
+            <ToggleGroupItem value="snippets" className="data-[state=on]:bg-success/15 data-[state=on]:text-success data-[state=on]:border-success/30 border border-border bg-card px-3 py-1 text-xs rounded-full transition-colors flex items-center gap-1.5">
+              <Code2 className="h-3 w-3" /> Snippets
+            </ToggleGroupItem>
+            <ToggleGroupItem value="media" className="data-[state=on]:bg-primary/15 data-[state=on]:text-primary data-[state=on]:border-primary/30 border border-border bg-card px-3 py-1 text-xs rounded-full transition-colors flex items-center gap-1.5">
+              <Image className="h-3 w-3" /> Media
+            </ToggleGroupItem>
+          </ToggleGroup>
+        </div>
 
         <hr className="my-6 border-border" />
 
