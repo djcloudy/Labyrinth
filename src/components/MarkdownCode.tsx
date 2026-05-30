@@ -21,9 +21,12 @@ export function MarkdownPre({ children, ...props }: any) {
   const [copied, setCopied] = useState(false);
   const preRef = useRef<HTMLPreElement>(null);
 
+  const handlePointerDown = (e: React.PointerEvent) => {
+    e.stopPropagation();
+  };
+
   const handleCopy = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    e.preventDefault();
     const node = preRef.current;
     const text = ((node?.innerText || node?.textContent) ?? '').replace(/\n$/, '');
     if (!text) return;
@@ -39,6 +42,7 @@ export function MarkdownPre({ children, ...props }: any) {
       <pre ref={preRef} {...props}>{children}</pre>
       <button
         type="button"
+        onPointerDown={handlePointerDown}
         onClick={handleCopy}
         aria-label="Copy code"
         className="absolute right-2 top-2 inline-flex h-7 w-7 items-center justify-center rounded-md border border-border bg-secondary/80 text-muted-foreground opacity-0 backdrop-blur transition-opacity hover:bg-secondary hover:text-foreground group-hover:opacity-100 focus-visible:opacity-100"
