@@ -7,7 +7,12 @@ type CaptureCtx = {
   closeCapture: () => void;
 };
 
-const Ctx = createContext<CaptureCtx | null>(null);
+const Ctx = createContext<CaptureCtx>({
+  open: false,
+  initialText: '',
+  openCapture: () => {},
+  closeCapture: () => {},
+});
 
 export function CaptureProvider({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
@@ -18,7 +23,5 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
 }
 
 export function useCapture() {
-  const c = useContext(Ctx);
-  if (!c) throw new Error('useCapture must be used inside CaptureProvider');
-  return c;
+  return useContext(Ctx);
 }
