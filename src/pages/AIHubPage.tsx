@@ -199,8 +199,11 @@ export default function AIHubPage() {
   }, [messages]);
 
   useEffect(() => {
-    setModel(availableModels[0] || (provider === 'ollama' ? '' : PROVIDER_MODELS[provider][0]));
-  }, [provider, availableModels]);
+    if (!active) return;
+    if (model && availableModels.includes(model)) return;
+    const fallback = availableModels[0] || (provider === 'ollama' ? '' : PROVIDER_MODELS[provider][0]);
+    if (fallback && fallback !== model) setModel(fallback);
+  }, [provider, availableModels, model, active, setModel]);
 
   const updateSettings = (patch: Partial<AISettings>) => {
     const next = { ...settings, ...patch };
