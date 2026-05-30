@@ -99,37 +99,95 @@ export default function ProjectDetail() {
 
   const handleDeleteProject = async () => { await projectStore.delete(id!); navigate('/projects'); };
 
+  // Derived filtering
+  const q = search.trim().toLowerCase();
+  const matchesQ = (s: string) => !q || s.toLowerCase().includes(q);
+  const hasTag = (t?: string[]) => !tagFilter || (t || []).includes(tagFilter);
+  const filteredDocs = useMemo(() => docs.filter(d => hasTag(d.tags) && (matchesQ(d.title) || matchesQ(d.content || ''))), [docs, q, tagFilter]);
+  const filteredTasks = useMemo(() => tasks.filter(t => hasTag(t.tags) && (matchesQ(t.title) || matchesQ(t.description || ''))), [tasks, q, tagFilter]);
+  const filteredSnippets = useMemo(() => snippets.filter(s => hasTag(s.tags) && (matchesQ(s.title) || matchesQ(s.code || ''))), [snippets, q, tagFilter]);
+
+  const allProjectTags = useMemo(() => {
+    const s = new Set<string>();
+    [...docs, ...tasks, ...snippets].forEach(item => (item.tags || []).forEach(t => s.add(t)));
+    return Array.from(s).sort();
+  }, [docs, tasks, snippets]);
+
+  const doneCount = tasks.filter(t => t.status === 'DONE').length;
+  const percent = tasks.length ? Math.round((doneCount / tasks.length) * 100) : 0;
+
   return (
     <AppLayout>
       <div className="animate-fade-in">
         <button onClick={() => navigate('/projects')} className="mb-2 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors">
           <ArrowLeft className="h-3 w-3" /> PROJECTS
         </button>
-        <div className="mb-2 flex items-start justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">{project.name}</h1>
-            <p className="mt-1 text-sm text-muted-foreground">{project.description}</p>
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground break-words">{project.name}</h1>
+            {project.description && <p className="mt-1 text-sm text-muted-foreground break-words">{project.description}</p>}
           </div>
-          <div className="flex gap-2">
-            <button onClick={() => navigate(`/projects`)} className="rounded-lg border border-border p-2 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"><Pencil className="h-4 w-4" /></button>
-            <button onClick={handleDeleteProject} className="rounded-lg border border-border p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"><Trash2 className="h-4 w-4" /></button>
+          <div className="flex gap-2 shrink-0">
+            <button onClick={() => navigate(`/projects`)} className="rounded-lg border border-border p-2 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors" title="Edit project"><Pencil className="h-4 w-4" /></button>
+            <button onClick={handleDeleteProject} className="rounded-lg border border-border p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors" title="Delete project"><Trash2 className="h-4 w-4" /></button>
           </div>
         </div>
 
+        {/* Stat chips */}
+        <div className="mb-4 flex flex-wrap gap-2">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground">
+            <FileText className="h-3 w-3 text-info" /> {docs.length} {docs.length === 1 ? 'doc' : 'docs'}
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground">
+            <ListTodo className="h-3 w-3 text-warning" /> {tasks.length} {tasks.length === 1 ? 'task' : 'tasks'}
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground">
+            <Code2 className="h-3 w-3 text-success" /> {snippets.length} {snippets.length === 1 ? 'snippet' : 'snippets'}
+          </span>
+          {tasks.length > 0 && (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground">
+              <CheckCircle2 className="h-3 w-3 text-success" /> {percent}% done
+            </span>
+          )}
+        </div>
+
         {/* Task Progress Bar */}
-        {!loadingTasks && tasks.length > 0 && (() => {
-          const doneCount = tasks.filter(t => t.status === 'DONE').length;
-          const percent = Math.round((doneCount / tasks.length) * 100);
-          return (
-            <div className="mb-6 rounded-xl border border-border bg-card p-4">
-              <div className="mb-2 flex items-center justify-between text-sm">
-                <span className="font-medium text-foreground">Task Progress</span>
-                <span className="text-muted-foreground">{doneCount}/{tasks.length} completed ({percent}%)</span>
-              </div>
-              <Progress value={percent} className="h-2" />
+        {!loadingTasks && tasks.length > 0 && (
+          <div className="mb-6 rounded-xl border border-border bg-card p-4">
+            <div className="mb-2 flex items-center justify-between text-sm">
+              <span className="font-medium text-foreground">Task Progress</span>
+              <span className="text-muted-foreground">{doneCount}/{tasks.length} completed ({percent}%)</span>
             </div>
-          );
-        })()}
+            <Progress value={percent} className="h-2" />
+          </div>
+        )}
+
+        {/* Search + tag filter within project */}
+        {(docs.length + tasks.length + snippets.length > 0) && (
+          <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input placeholder="Search this project..." value={search} onChange={e => setSearch(e.target.value)} className="bg-secondary border-border pl-9" />
+            </div>
+            {allProjectTags.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                <Tag className="h-3 w-3 text-muted-foreground" />
+                {allProjectTags.slice(0, 8).map(t => (
+                  <button
+                    key={t}
+                    onClick={() => setTagFilter(tagFilter === t ? null : t)}
+                    className={cn(
+                      'rounded-full border px-2 py-0.5 text-[11px] transition-colors',
+                      tagFilter === t
+                        ? 'border-primary bg-primary/15 text-primary'
+                        : 'border-border bg-secondary text-muted-foreground hover:text-foreground'
+                    )}
+                  >#{t}</button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         <hr className="my-6 border-border" />
 
@@ -137,18 +195,32 @@ export default function ProjectDetail() {
         <div className="mb-8">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="flex items-center gap-2 text-lg font-semibold"><FileText className="h-5 w-5 text-info" /> Documents</h2>
-            <button onClick={openDocCreate} className="text-xs font-semibold text-primary hover:text-primary/80 transition-colors">+ ADD DOC</button>
+            <Button size="sm" variant="ghost" onClick={openDocCreate} className="gap-1 text-primary hover:text-primary"><Plus className="h-3.5 w-3.5" /> Add doc</Button>
           </div>
-          {loadingDocs ? <Skeleton className="h-16 w-full" /> : docs.length === 0 ? <p className="text-sm text-muted-foreground">No documents yet.</p> : (
+          {loadingDocs ? <Skeleton className="h-16 w-full" /> : docs.length === 0 ? (
+            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-10 text-center">
+              <FileText className="mb-2 h-6 w-6 text-muted-foreground" />
+              <p className="mb-3 text-sm text-muted-foreground">No documents yet — capture a runbook, install guide, or troubleshooting note.</p>
+              <Button size="sm" onClick={openDocCreate} className="gap-1"><Plus className="h-3.5 w-3.5" /> New document</Button>
+            </div>
+          ) : filteredDocs.length === 0 ? (
+            <p className="text-sm text-muted-foreground italic">No documents match your filter.</p>
+          ) : (
             <div className="space-y-3">
-              {docs.map(doc => (
+              {filteredDocs.map(doc => (
                 <div key={doc.id} className="group rounded-xl border border-border bg-card p-4 hover:border-info/30 transition-colors cursor-pointer" onClick={() => setViewDoc(doc)}>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-2">
                     <div className="min-w-0 flex-1">
-                      <h3 className="font-semibold text-foreground">{doc.title}</h3>
+                      <h3 className="font-semibold text-foreground truncate">{doc.title}</h3>
                       <p className="mt-1 line-clamp-2 text-sm text-muted-foreground break-words">{doc.content || 'Empty document'}</p>
+                      {(doc.tags?.length || doc.source) && (
+                        <div className="mt-2 flex flex-wrap items-center gap-1">
+                          {doc.source && doc.source !== 'manual' && <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">{doc.source}</span>}
+                          {(doc.tags || []).map(t => <span key={t} className="rounded bg-secondary px-1.5 py-0.5 text-[10px] text-muted-foreground">#{t}</span>)}
+                        </div>
+                      )}
                     </div>
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-2">
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                       <button onClick={(e) => { e.stopPropagation(); openDocEdit(doc); }} className="rounded-md p-1.5 hover:bg-secondary text-muted-foreground hover:text-foreground"><Pencil className="h-3.5 w-3.5" /></button>
                       <button onClick={(e) => { e.stopPropagation(); deleteDoc(doc.id); }} className="rounded-md p-1.5 hover:bg-destructive/20 text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
                     </div>
@@ -163,11 +235,19 @@ export default function ProjectDetail() {
         <div className="mb-8">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="flex items-center gap-2 text-lg font-semibold"><ListTodo className="h-5 w-5 text-warning" /> Tasks</h2>
-            <button onClick={openTaskCreate} className="text-xs font-semibold text-primary hover:text-primary/80 transition-colors">+ ADD TASK</button>
+            <Button size="sm" variant="ghost" onClick={openTaskCreate} className="gap-1 text-primary hover:text-primary"><Plus className="h-3.5 w-3.5" /> Add task</Button>
           </div>
-          {loadingTasks ? <Skeleton className="h-16 w-full" /> : tasks.length === 0 ? <p className="text-sm text-muted-foreground">No tasks yet.</p> : (
+          {loadingTasks ? <Skeleton className="h-16 w-full" /> : tasks.length === 0 ? (
+            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-10 text-center">
+              <ListTodo className="mb-2 h-6 w-6 text-muted-foreground" />
+              <p className="mb-3 text-sm text-muted-foreground">No tasks yet — track what needs doing for this project.</p>
+              <Button size="sm" onClick={openTaskCreate} className="gap-1"><Plus className="h-3.5 w-3.5" /> New task</Button>
+            </div>
+          ) : filteredTasks.length === 0 ? (
+            <p className="text-sm text-muted-foreground italic">No tasks match your filter.</p>
+          ) : (
             <div className="space-y-2">
-              {tasks.map(task => {
+              {filteredTasks.map(task => {
                 const StatusIcon = STATUS_ICONS[task.status].icon;
                 return (
                   <div key={task.id} className="group flex items-center gap-3 rounded-lg border border-border bg-card p-3 hover:border-warning/30 transition-colors cursor-pointer" onClick={() => setViewTask(task)}>
@@ -175,7 +255,7 @@ export default function ProjectDetail() {
                       <StatusIcon className={cn('h-4 w-4', STATUS_ICONS[task.status].className)} />
                     </button>
                     <div className="min-w-0 flex-1">
-                      <p className={cn("text-sm font-medium text-foreground", task.status === 'DONE' && 'line-through text-muted-foreground')}>{task.title}</p>
+                      <p className={cn("text-sm font-medium text-foreground truncate", task.status === 'DONE' && 'line-through text-muted-foreground')}>{task.title}</p>
                       {task.description && <p className="text-xs text-muted-foreground line-clamp-1 break-words">{task.description}</p>}
                     </div>
                     <span className={cn('rounded px-1.5 py-0.5 text-[10px] font-bold shrink-0', PRIORITY_COLORS[task.priority])}>{task.priority}</span>
@@ -194,18 +274,26 @@ export default function ProjectDetail() {
         <div>
           <div className="mb-4 flex items-center justify-between">
             <h2 className="flex items-center gap-2 text-lg font-semibold"><Code2 className="h-5 w-5 text-success" /> Snippets</h2>
-            <button onClick={openSnipCreate} className="text-xs font-semibold text-primary hover:text-primary/80 transition-colors">+ ADD SNIPPET</button>
+            <Button size="sm" variant="ghost" onClick={openSnipCreate} className="gap-1 text-primary hover:text-primary"><Plus className="h-3.5 w-3.5" /> Add snippet</Button>
           </div>
-          {loadingSnippets ? <Skeleton className="h-16 w-full" /> : snippets.length === 0 ? <p className="text-sm text-muted-foreground">No snippets yet.</p> : (
+          {loadingSnippets ? <Skeleton className="h-16 w-full" /> : snippets.length === 0 ? (
+            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-10 text-center">
+              <Code2 className="mb-2 h-6 w-6 text-muted-foreground" />
+              <p className="mb-3 text-sm text-muted-foreground">No snippets yet — save commands, configs, or scripts you reuse.</p>
+              <Button size="sm" onClick={openSnipCreate} className="gap-1"><Plus className="h-3.5 w-3.5" /> New snippet</Button>
+            </div>
+          ) : filteredSnippets.length === 0 ? (
+            <p className="text-sm text-muted-foreground italic">No snippets match your filter.</p>
+          ) : (
             <div className="space-y-3">
-              {snippets.map(snip => (
+              {filteredSnippets.map(snip => (
                 <div key={snip.id} className="group rounded-xl border border-border bg-card p-4 hover:border-success/30 transition-colors cursor-pointer" onClick={() => setViewSnippet(snip)}>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-semibold text-foreground">{snip.title}</h3>
-                      <span className={`rounded px-2 py-0.5 text-xs font-bold ${LANG_COLORS[snip.language]}`}>{snip.language}</span>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <h3 className="font-semibold text-foreground truncate">{snip.title}</h3>
+                      <span className={`shrink-0 rounded px-2 py-0.5 text-xs font-bold ${LANG_COLORS[snip.language]}`}>{snip.language}</span>
                     </div>
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                       <button onClick={(e) => { e.stopPropagation(); handleCopy(snip.id, snip.code); }} className="rounded-md p-1.5 hover:bg-secondary text-muted-foreground hover:text-foreground" title="Copy">
                         {copiedId === snip.id ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
                       </button>
@@ -219,6 +307,7 @@ export default function ProjectDetail() {
             </div>
           )}
         </div>
+
 
         {/* View Document Dialog */}
         <Dialog open={!!viewDoc} onOpenChange={(open) => !open && setViewDoc(null)}>
