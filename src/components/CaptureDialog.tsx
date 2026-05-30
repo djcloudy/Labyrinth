@@ -63,6 +63,7 @@ export default function CaptureDialog() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [saving, setSaving] = useState(false);
   const [pastedImage, setPastedImage] = useState<{ dataUrl: string; name: string } | null>(null);
+  const [saveToKnowledge, setSaveToKnowledge] = useState(false);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => { if (open) projectStore.getAll().then(setProjects); }, [open]);
@@ -72,7 +73,7 @@ export default function CaptureDialog() {
       const remembered = (() => { try { return localStorage.getItem(LAST_PROJECT_KEY) || 'none'; } catch { return 'none'; } })();
       setType('auto'); setTitle(''); setBody(initialText || '');
       setLanguage('BASH'); setProjectId(remembered); setTags(''); setNotes('');
-      setPastedImage(null);
+      setPastedImage(null); setSaveToKnowledge(false);
     }
   }, [open, initialText]);
 
