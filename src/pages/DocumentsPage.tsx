@@ -139,23 +139,13 @@ export default function DocumentsPage() {
           </div>
         )}
 
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogContent className="bg-card border-border">
-            <DialogHeader><DialogTitle>{editing ? 'Edit Document' : 'New Document'}</DialogTitle></DialogHeader>
-            <div className="space-y-4">
-              <Input placeholder="Title" value={title} onChange={e => setTitle(e.target.value)} className="bg-secondary border-border" />
-              <Select value={projectId} onValueChange={setProjectId}>
-                <SelectTrigger className="bg-secondary border-border"><SelectValue placeholder="Link to project" /></SelectTrigger>
-                <SelectContent className="bg-card border-border">
-                  <SelectItem value="none">No project</SelectItem>
-                  {projects.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              <Textarea placeholder="Content (supports markdown)" value={content} onChange={e => setContent(e.target.value)} rows={10} className="bg-secondary border-border font-mono text-sm" />
-              <Button onClick={handleSave} className="w-full">{editing ? 'Save' : 'Create'}</Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <DocumentEditor
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          editing={editing}
+          projects={projects}
+          onSave={handleSave}
+        />
       </div>
     </AppLayout>
   );
