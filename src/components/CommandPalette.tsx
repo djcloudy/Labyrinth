@@ -151,6 +151,24 @@ export default function CommandPalette() {
                 ))}
               </CommandGroup>
             )}
+            {results.knowledge.length > 0 && (
+              <CommandGroup heading="Knowledge Base">
+                {results.knowledge.map(k => {
+                  const Icon = k.kind === 'snippet' ? Code2 : k.kind === 'image' ? ImageIcon : k.kind === 'link' ? Link2 : BookOpen;
+                  return (
+                    <CommandItem key={k.id} value={`kb-${k.id}-${k.title}`} onSelect={() => go(`/knowledge?entry=${k.id}`)}>
+                      <Icon className="mr-2 h-4 w-4 text-primary" />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate">{k.title}</p>
+                        <p className="truncate text-[11px] text-muted-foreground">
+                          {k.kind}{(k.tags || []).length ? ` · ${k.tags.join(', ')}` : ''}
+                        </p>
+                      </div>
+                    </CommandItem>
+                  );
+                })}
+              </CommandGroup>
+            )}
           </>
         )}
       </CommandList>
