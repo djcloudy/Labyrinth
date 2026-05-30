@@ -265,3 +265,39 @@ export const conversationStore = {
     setLocal(KEYS.conversations, getLocal<Conversation>(KEYS.conversations).filter(c => c.id !== id));
   },
 };
+
+// Knowledge Base (not tied to a project)
+export const knowledgeStore = {
+  getAll: async (): Promise<KnowledgeEntry[]> => {
+    if (useApi()) return apiGetAll<KnowledgeEntry>('knowledge');
+    return getLocal(KEYS.knowledge);
+  },
+  getById: async (id: string): Promise<KnowledgeEntry | undefined> => {
+    if (useApi()) {
+      const all = await apiGetAll<KnowledgeEntry>('knowledge');
+      return all.find(k => k.id === id);
+    }
+    return getLocal<KnowledgeEntry>(KEYS.knowledge).find(k => k.id === id);
+  },
+  create: async (data: Omit<KnowledgeEntry, 'id' | 'createdAt' | 'updatedAt'>): Promise<KnowledgeEntry> => {
+    if (useApi()) return apiCreate<KnowledgeEntry>('knowledge', data);
+    const list = getLocal<KnowledgeEntry>(KEYS.knowledge);
+    const entry: KnowledgeEntry = { ...data, id: generateId(), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+    list.push(entry);
+    setLocal(KEYS.knowledge, list);
+    return entry;
+  },
+  update: async (id: string, data: Partial<Omit<KnowledgeEntry, 'id' | 'createdAt'>>): Promise<KnowledgeEntry | undefined> => {
+    if (useApi()) return apiUpdate<KnowledgeEntry>('knowledge', id, data);
+    const list = getLocal<KnowledgeEntry>(KEYS.knowledge);
+    const idx = list.findIndex(k => k.id === id);
+    if (idx === -1) return undefined;
+    list[idx] = { ...list[idx], ...data, updatedAt: new Date().toISOString() };
+    setLocal(KEYS.knowledge, list);
+    return list[idx];
+  },
+  delete: async (id: string): Promise<void> => {
+    if (useApi()) return apiDelete('knowledge', id);
+    setLocal(KEYS.knowledge, getLocal<KnowledgeEntry>(KEYS.knowledge).filter(k => k.id !== id));
+  },
+};
