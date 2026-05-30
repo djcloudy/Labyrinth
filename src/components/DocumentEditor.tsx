@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import RevisionsDialog from '@/components/RevisionsDialog';
-import { documentStore } from '@/lib/store';
+
 import { Document, Project } from '@/lib/types';
 import { DOC_TEMPLATES } from '@/lib/templates';
 import { cn } from '@/lib/utils';
@@ -19,14 +19,16 @@ interface Props {
   editing: Document | null;
   projects: Project[];
   onSave: (data: { title: string; content: string; projectId: string | null }) => Promise<void> | void;
+  onRefresh?: () => void;
 }
 
-export default function DocumentEditor({ open, onOpenChange, editing, projects, onSave }: Props) {
+export default function DocumentEditor({ open, onOpenChange, editing, projects, onSave, onRefresh }: Props) {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [projectId, setProjectId] = useState<string>('none');
   const [showPreview, setShowPreview] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   useEffect(() => {
     if (open) {
