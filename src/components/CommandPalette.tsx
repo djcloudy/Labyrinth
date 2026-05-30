@@ -93,6 +93,7 @@ export default function CommandPalette() {
               <CommandItem onSelect={() => go('/snippets')}><Code2 className="mr-2 h-4 w-4" /> Snippets</CommandItem>
               <CommandItem onSelect={() => go('/media')}><Image className="mr-2 h-4 w-4" /> Media</CommandItem>
               <CommandItem onSelect={() => go('/ai-hub')}><Bot className="mr-2 h-4 w-4" /> AI Hub</CommandItem>
+              <CommandItem onSelect={() => go('/knowledge')}><BookOpen className="mr-2 h-4 w-4" /> Knowledge Base</CommandItem>
               <CommandItem onSelect={() => go('/audit')}><Activity className="mr-2 h-4 w-4" /> Audit trail</CommandItem>
               <CommandItem onSelect={() => go('/settings')}><Settings className="mr-2 h-4 w-4" /> Settings</CommandItem>
             </CommandGroup>
