@@ -432,9 +432,9 @@ export default function AIHubPage() {
 
   return (
     <AppLayout>
-      <div className="animate-fade-in flex h-[calc(100vh-2rem)] gap-4">
+      <div className="animate-fade-in flex h-[calc(100vh-4rem)] gap-4">
         {/* Conversation sidebar */}
-        <aside className="hidden w-64 shrink-0 flex-col rounded-xl border border-border bg-card/50 p-3 md:flex">
+        <aside className="hidden w-48 shrink-0 flex-col rounded-xl border border-border bg-card/50 p-3 md:flex">
           <Button onClick={() => newConversation()} size="sm" className="mb-3 w-full justify-start gap-2">
             <Plus className="h-4 w-4" /> New chat
           </Button>
