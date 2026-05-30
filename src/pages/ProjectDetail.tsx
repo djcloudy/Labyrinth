@@ -18,6 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { useStore } from '@/hooks/use-store';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import { copyWithToast } from '@/lib/clipboard';
 
 
 const LANG_COLORS: Record<SnippetLanguage, string> = { BASH: 'bg-warning/20 text-warning', YAML: 'bg-info/20 text-info', PYTHON: 'bg-success/20 text-success' };
@@ -105,7 +106,8 @@ export default function ProjectDetail() {
   const cycleTaskStatus = async (task: Task) => { const next: Record<TaskStatus, TaskStatus> = { TODO: 'IN_PROGRESS', IN_PROGRESS: 'DONE', DONE: 'TODO' }; await taskStore.update(task.id, { status: next[task.status] }); refreshTasks(); };
 
   const handleCopy = async (snippetId: string, code: string) => {
-    await navigator.clipboard.writeText(code);
+    const ok = await copyWithToast(code, 'Snippet copied');
+    if (!ok) return;
     setCopiedId(snippetId);
     setTimeout(() => setCopiedId(null), 2000);
   };
@@ -334,7 +336,7 @@ export default function ProjectDetail() {
               )}
             </div>
             <div className="flex justify-end gap-2 pt-4 border-t border-border">
-              <Button variant="outline" size="sm" onClick={() => { if (viewDoc?.content) { navigator.clipboard.writeText(viewDoc.content); } }}>
+              <Button variant="outline" size="sm" onClick={() => { if (viewDoc?.content) copyWithToast(viewDoc.content, 'Document copied'); }}>
                 <Copy className="h-3.5 w-3.5 mr-1.5" /> Copy
               </Button>
               <Button variant="outline" size="sm" onClick={() => { if (viewDoc) { openDocEdit(viewDoc); setViewDoc(null); } }}>

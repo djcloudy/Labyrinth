@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import { copyWithToast } from '@/lib/clipboard';
 
 const LANG_COLORS: Record<SnippetLanguage, string> = { BASH: 'bg-warning/20 text-warning', YAML: 'bg-info/20 text-info', PYTHON: 'bg-success/20 text-success' };
 
@@ -46,7 +47,8 @@ export default function SnippetsPage() {
   const handleDelete = async (id: string) => { await snippetStore.delete(id); refresh(); };
 
   const handleCopy = async (id: string, code: string) => {
-    await navigator.clipboard.writeText(code);
+    const ok = await copyWithToast(code, 'Snippet copied');
+    if (!ok) return;
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
   };
