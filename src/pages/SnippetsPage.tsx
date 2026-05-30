@@ -46,7 +46,8 @@ export default function SnippetsPage() {
   const handleDelete = async (id: string) => { await snippetStore.delete(id); refresh(); };
 
   const handleCopy = async (id: string, code: string) => {
-    await navigator.clipboard.writeText(code);
+    const ok = await copyWithToast(code, 'Snippet copied');
+    if (!ok) return;
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
   };
