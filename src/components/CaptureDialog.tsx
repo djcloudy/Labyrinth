@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { FileText, Code2, ListTodo, Sparkles, X, Image as ImageIcon } from 'lucide-react';
+import { FileText, Code2, ListTodo, Sparkles, X, Image as ImageIcon, BookOpen } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,8 +9,8 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { useCapture } from '@/hooks/use-capture';
-import { projectStore, documentStore, snippetStore, taskStore, mediaStore } from '@/lib/store';
-import { Project, SnippetLanguage } from '@/lib/types';
+import { projectStore, documentStore, snippetStore, taskStore, mediaStore, knowledgeStore } from '@/lib/store';
+import { Project, SnippetLanguage, KnowledgeKind } from '@/lib/types';
 
 const LAST_PROJECT_KEY = 'labyrinth:lastProjectId';
 
