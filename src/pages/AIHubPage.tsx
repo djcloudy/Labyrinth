@@ -72,6 +72,8 @@ export default function AIHubPage() {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [attachDialogOpen, setAttachDialogOpen] = useState(false);
   const [knowledgeBase, setKnowledgeBase] = useState(false);
+  const [knowledgeScope, setKnowledgeScope] = useState<string>('all'); // 'all' = index only, or projectId = full content
+  const { data: kbProjects } = useStore<Project>(useCallback(() => projectStore.getAll(), []));
 
   // Context sharing security
   const getContextAllowed = useCallback(() => {
