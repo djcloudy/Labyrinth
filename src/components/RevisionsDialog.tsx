@@ -38,6 +38,9 @@ function snapshotPreview(collection: CollectionName, snap: Record<string, unknow
     if (snap.description) parts.push(`\n${snap.description}`);
     return parts.join(' · ');
   }
+  if (collection === 'knowledge') {
+    return String(snap.content ?? snap.code ?? snap.description ?? snap.url ?? '');
+  }
   return String(snap.content ?? '');
 }
 
