@@ -179,6 +179,13 @@ export default function DocumentEditor({ open, onOpenChange, editing, projects, 
           </Button>
         </div>
       </DialogContent>
+      <RevisionsDialog
+        open={historyOpen}
+        onOpenChange={setHistoryOpen}
+        collection="documents"
+        id={editing?.id ?? null}
+        onRestored={() => { onRefresh?.(); onOpenChange(false); }}
+      />
     </Dialog>
   );
 }
