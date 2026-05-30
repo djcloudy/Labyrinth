@@ -19,6 +19,19 @@ interface ContextSharingSettings {
 const CONTEXT_SHARING_KEY = 'labyrinth_context_sharing';
 const DEFAULT_CONTEXT_SHARING: ContextSharingSettings = { openai: false, gemini: false, ollama: true };
 
+const RETENTION_KEY = 'labyrinth_ai_retention';
+const DEFAULT_MAX_CONVERSATIONS = 50;
+
+interface RetentionSettings { maxConversations: number }
+
+function loadRetention(): RetentionSettings {
+  try {
+    const stored = JSON.parse(localStorage.getItem(RETENTION_KEY) || 'null');
+    const n = Number(stored?.maxConversations);
+    return { maxConversations: Number.isFinite(n) && n > 0 ? Math.floor(n) : DEFAULT_MAX_CONVERSATIONS };
+  } catch { return { maxConversations: DEFAULT_MAX_CONVERSATIONS }; }
+}
+
 function loadContextSharing(): ContextSharingSettings {
   try {
     const stored = JSON.parse(localStorage.getItem(CONTEXT_SHARING_KEY) || 'null');
