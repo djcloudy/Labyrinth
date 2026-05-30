@@ -499,8 +499,8 @@ export default function AIHubPage() {
         <div className="flex flex-1 flex-col min-w-0">
         {/* Header */}
         <div className="mb-4 flex flex-wrap items-center justify-between gap-y-2">
-          <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-bold text-foreground">AI Hub</h1>
+          <div className="flex flex-wrap items-center gap-3 gap-y-2">
+            <h1 className="text-2xl font-bold text-foreground">AI Hub</h1>
             {provider === 'ollama' && (
               <Badge
                 variant="secondary"
