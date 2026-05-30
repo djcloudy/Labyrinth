@@ -45,6 +45,7 @@ export default function ProjectDetail() {
   const { data: docs, loading: loadingDocs, refresh: refreshDocs } = useStore(useCallback(() => documentStore.getByProject(id!), [id]));
   const { data: snippets, loading: loadingSnippets, refresh: refreshSnippets } = useStore(useCallback(() => snippetStore.getByProject(id!), [id]));
   const { data: tasks, loading: loadingTasks, refresh: refreshTasks } = useStore(useCallback(() => taskStore.getByProject(id!), [id]));
+  const { data: media, loading: loadingMedia, refresh: refreshMedia } = useStore(useCallback(() => mediaStore.getByProject(id!), [id]));
 
   // Editor state
   const [docEditorOpen, setDocEditorOpen] = useState(false);
@@ -58,9 +59,13 @@ export default function ProjectDetail() {
   const [viewDoc, setViewDoc] = useState<Document | null>(null);
   const [viewSnippet, setViewSnippet] = useState<Snippet | null>(null);
   const [viewTask, setViewTask] = useState<Task | null>(null);
+  const [viewMedia, setViewMedia] = useState<MediaItem | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [tagFilter, setTagFilter] = useState<string | null>(null);
+
+  // Section visibility toggles
+  const [visibleSections, setVisibleSections] = useState<string[]>(['docs', 'tasks', 'snippets', 'media']);
 
   // Derived filtering (hooks must run before any early return)
   const q = search.trim().toLowerCase();
@@ -69,6 +74,7 @@ export default function ProjectDetail() {
   const filteredDocs = useMemo(() => docs.filter(d => hasTag(d.tags) && (matchesQ(d.title) || matchesQ(d.content || ''))), [docs, q, tagFilter]);
   const filteredTasks = useMemo(() => tasks.filter(t => hasTag(t.tags) && (matchesQ(t.title) || matchesQ(t.description || ''))), [tasks, q, tagFilter]);
   const filteredSnippets = useMemo(() => snippets.filter(s => hasTag(s.tags) && (matchesQ(s.title) || matchesQ(s.code || ''))), [snippets, q, tagFilter]);
+  const filteredMedia = useMemo(() => media.filter(m => matchesQ(m.title)), [media, q]);
   const allProjectTags = useMemo(() => {
     const s = new Set<string>();
     [...docs, ...tasks, ...snippets].forEach(item => (item.tags || []).forEach(t => s.add(t)));
