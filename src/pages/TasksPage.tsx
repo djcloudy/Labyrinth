@@ -1,20 +1,17 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, Pencil, Trash2, CheckCircle2, Circle, Clock, Search, GripVertical, Calendar as CalendarIcon, ListChecks, X, Tag, History } from 'lucide-react';
+import { Plus, Pencil, Trash2, CheckCircle2, Circle, Clock, Search, GripVertical, Calendar as CalendarIcon, ListChecks, Tag } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { format, isPast, isToday } from 'date-fns';
 import AppLayout from '@/components/AppLayout';
-import RevisionsDialog from '@/components/RevisionsDialog';
+import TaskEditor from '@/components/TaskEditor';
 import { taskStore, projectStore } from '@/lib/store';
 import { useStore } from '@/hooks/use-store';
-import { Task, TaskStatus, TaskPriority, Project, ChecklistItem } from '@/lib/types';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Task, TaskStatus, TaskPriority, Project } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 
@@ -30,27 +27,13 @@ const PRIORITY_COLORS: Record<TaskPriority, string> = {
   HIGH: 'bg-destructive/20 text-destructive',
 };
 
-function newChecklistItem(text = ''): ChecklistItem {
-  return { id: crypto.randomUUID(), text, done: false };
-}
-
 export default function TasksPage() {
   const { data: tasks, loading, refresh } = useStore(useCallback(() => taskStore.getAll(), []));
   const [projects, setProjects] = useState<Project[]>([]);
   useEffect(() => { projectStore.getAll().then(setProjects); }, []);
 
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editorOpen, setEditorOpen] = useState(false);
   const [editing, setEditing] = useState<Task | null>(null);
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [status, setStatus] = useState<TaskStatus>('TODO');
-  const [priority, setPriority] = useState<TaskPriority>('MEDIUM');
-  const [projectId, setProjectId] = useState<string>('');
-  const [dueDate, setDueDate] = useState<string>('');
-  const [tagsInput, setTagsInput] = useState<string>('');
-  const [checklist, setChecklist] = useState<ChecklistItem[]>([]);
-  const [showDetails, setShowDetails] = useState(false);
-  const [historyOpen, setHistoryOpen] = useState(false);
   const [filterProject, setFilterProject] = useState<string>('all');
   const [filterTag, setFilterTag] = useState<string>('all');
   const [search, setSearch] = useState('');
@@ -59,40 +42,14 @@ export default function TasksPage() {
   const highlightRef = useRef<HTMLDivElement>(null);
   useEffect(() => { if (highlightRef.current) highlightRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, [highlightId, loading]);
 
-  const openCreate = useCallback(() => {
-    setEditing(null);
-    setTitle(''); setDescription(''); setStatus('TODO'); setPriority('MEDIUM');
-    setProjectId(projects.length > 0 ? projects[0].id : '');
-    setDueDate(''); setTagsInput(''); setChecklist([]);
-    setShowDetails(false);
-    setDialogOpen(true);
-  }, [projects]);
+  const openCreate = useCallback(() => { setEditing(null); setEditorOpen(true); }, []);
+  const openEdit = (t: Task) => { setEditing(t); setEditorOpen(true); };
 
-  const openEdit = (t: Task) => {
-    setEditing(t);
-    setTitle(t.title); setDescription(t.description);
-    setStatus(t.status); setPriority(t.priority); setProjectId(t.projectId);
-    setDueDate(t.dueDate ? t.dueDate.slice(0, 10) : '');
-    setTagsInput((t.tags || []).join(', '));
-    setChecklist(t.checklist || []);
-    setShowDetails(true);
-    setDialogOpen(true);
-  };
-
-  const handleSave = useCallback(async () => {
-    if (!title.trim() || !projectId) return;
-    const tags = tagsInput.split(',').map(s => s.trim()).filter(Boolean);
-    const cleaned = checklist.filter(c => c.text.trim());
-    const payload = {
-      title: title.trim(), description, status, priority, projectId,
-      ...(dueDate ? { dueDate } : { dueDate: undefined }),
-      tags, checklist: cleaned,
-    };
-    if (editing) await taskStore.update(editing.id, payload);
-    else await taskStore.create(payload as Omit<Task, 'id' | 'createdAt' | 'updatedAt'>);
-    setDialogOpen(false);
+  const handleSave = async (data: Partial<Task>) => {
+    if (editing) await taskStore.update(editing.id, data);
+    else await taskStore.create(data as Omit<Task, 'id' | 'createdAt' | 'updatedAt'>);
     refresh();
-  }, [title, projectId, tagsInput, checklist, description, status, priority, dueDate, editing, refresh]);
+  };
 
   const handleDelete = async (id: string) => { await taskStore.delete(id); refresh(); };
 
@@ -133,15 +90,7 @@ export default function TasksPage() {
   const grouped: Record<TaskStatus, Task[]> = { TODO: [], IN_PROGRESS: [], DONE: [] };
   filtered.forEach(t => grouped[t.status]?.push(t));
 
-  // Ctrl/Cmd+Enter to save when dialog open
-  useEffect(() => {
-    if (!dialogOpen) return;
-    const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); handleSave(); }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [dialogOpen, handleSave]);
+
 
   return (
     <AppLayout>
