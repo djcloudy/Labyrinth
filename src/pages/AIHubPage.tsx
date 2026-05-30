@@ -535,7 +535,7 @@ export default function AIHubPage() {
                 </SelectContent>
               </Select>
               <Select value={model} onValueChange={setModel}>
-                <SelectTrigger className="w-48 bg-secondary border-border h-8 text-xs">
+                <SelectTrigger className="w-40 bg-secondary border-border h-8 text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-card border-border max-h-60">
