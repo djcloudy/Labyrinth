@@ -392,6 +392,25 @@ export default function AIHubPage() {
     } finally {
       setIsStreaming(false);
       inputRef.current?.focus();
+      // Persist final conversation state to store (server or localStorage fallback)
+      const id = activeId;
+      if (id) {
+        setConversations(prev => {
+          const conv = prev.find(c => c.id === id);
+          if (conv) {
+            const titlePatch = (conv.title === 'New chat' || !conv.title) ? { title: deriveTitle(conv.messages) } : {};
+            conversationStore
+              .update(id, { messages: conv.messages, ...titlePatch })
+              .then(updated => {
+                if (updated && titlePatch.title) {
+                  setConversations(p => p.map(c => c.id === id ? { ...c, title: updated.title } : c));
+                }
+              })
+              .catch(err => console.error('Failed to persist conversation messages', err));
+          }
+          return prev;
+        });
+      }
     }
   }, [input, messages, provider, model, settings, isStreaming, attachments, knowledgeBase, buildContextMessages]);
 
