@@ -1,0 +1,15 @@
+[
+  {
+    "id": "ad4c9fa2-1471-4643-b98e-2933dc15c6f3",
+    "createdAt": "2026-05-30T05:17:24.470Z",
+    "updatedAt": "2026-05-30T05:17:24.470Z",
+    "source": "assistant",
+    "createdBy": "assistant",
+    "updatedBy": "assistant",
+    "tags": [],
+    "title": "Disk usage triage commands",
+    "language": "BASH",
+    "code": "df -h | awk '$5 > 90 {print}'\ndu -sh /var/log/*",
+    "projectId": null
+  }
+]
