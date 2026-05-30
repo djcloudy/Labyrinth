@@ -4,13 +4,12 @@ import { Plus, Pencil, Trash2, ChevronDown, Search } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
 import AppLayout from '@/components/AppLayout';
+import DocumentEditor from '@/components/DocumentEditor';
 import { documentStore, projectStore } from '@/lib/store';
 import { useStore } from '@/hooks/use-store';
 import { Document, Project } from '@/lib/types';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
@@ -22,27 +21,32 @@ export default function DocumentsPage() {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Document | null>(null);
-  const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
-  const [projectId, setProjectId] = useState<string>('none');
   const [searchParams] = useSearchParams();
   const [expandedId, setExpandedId] = useState<string | null>(searchParams.get('doc'));
   const [search, setSearch] = useState('');
   const [filterProject, setFilterProject] = useState<string>('all');
 
-  const openCreate = () => { setEditing(null); setTitle(''); setContent(''); setProjectId('none'); setDialogOpen(true); };
-  const openEdit = (e: React.MouseEvent, d: Document) => { e.stopPropagation(); setEditing(d); setTitle(d.title); setContent(d.content); setProjectId(d.projectId || 'none'); setDialogOpen(true); };
+  const openCreate = useCallback(() => { setEditing(null); setDialogOpen(true); }, []);
+  const openEdit = (e: React.MouseEvent, d: Document) => { e.stopPropagation(); setEditing(d); setDialogOpen(true); };
 
-  const handleSave = async () => {
-    if (!title.trim()) return;
-    const pid = projectId === 'none' ? null : projectId;
-    if (editing) await documentStore.update(editing.id, { title, content, projectId: pid });
-    else await documentStore.create({ title, content, projectId: pid });
-    setDialogOpen(false);
+  const handleSave = async (data: { title: string; content: string; projectId: string | null }) => {
+    if (editing) await documentStore.update(editing.id, data);
+    else await documentStore.create(data);
     refresh();
   };
 
   const handleDelete = async (e: React.MouseEvent, id: string) => { e.stopPropagation(); await documentStore.delete(id); refresh(); };
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'n' || e.key === 'N') && !dialogOpen) {
+        e.preventDefault();
+        openCreate();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [dialogOpen, openCreate]);
 
   const toggleExpand = (id: string) => setExpandedId(prev => prev === id ? null : id);
 
