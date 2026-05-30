@@ -187,7 +187,7 @@ export default function AIHubPage() {
     }
 
     return [...contextMessages, { role: 'user' as const, content: userText }];
-  }, [attachments, knowledgeBase, contextAllowed]);
+  }, [attachments, knowledgeBase, knowledgeScope, contextAllowed]);
 
   const sendMessage = useCallback(async () => {
     const text = input.trim();
