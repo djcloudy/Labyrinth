@@ -172,7 +172,7 @@ export default function DocumentEditor({ open, onOpenChange, editing, projects, 
                     "prose-table:text-foreground prose-th:text-foreground prose-th:border-border prose-td:border-border",
                   )}>
                     {content.trim()
-                      ? <ReactMarkdown remarkPlugins={[remarkBreaks]}>{content}</ReactMarkdown>
+                      ? <ReactMarkdown remarkPlugins={[remarkBreaks]} components={markdownComponents}>{content}</ReactMarkdown>
                       : <p className="italic text-muted-foreground">Preview will appear here.</p>}
                   </div>
                 </ResizablePanel>
