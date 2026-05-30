@@ -498,7 +498,7 @@ export default function AIHubPage() {
         {/* Main chat column */}
         <div className="flex flex-1 flex-col min-w-0">
         {/* Header */}
-        <div className="mb-4 flex items-center justify-between">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-y-2">
           <div className="flex items-center gap-3">
             <h1 className="text-3xl font-bold text-foreground">AI Hub</h1>
             {provider === 'ollama' && (
