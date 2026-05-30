@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Pencil, Trash2, FileText, Code2, ListTodo, Circle, Clock, CheckCircle2, Copy, Check, Plus, Search, Tag } from 'lucide-react';
+import { ArrowLeft, Pencil, Trash2, FileText, Code2, ListTodo, Circle, Clock, CheckCircle2, Copy, Check, Plus, Search, Tag, Image, Eye } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -10,8 +10,8 @@ import DocumentEditor from '@/components/DocumentEditor';
 import SnippetEditor from '@/components/SnippetEditor';
 import TaskEditor from '@/components/TaskEditor';
 import { markdownComponents } from '@/components/MarkdownCode';
-import { projectStore, documentStore, snippetStore, taskStore } from '@/lib/store';
-import { Project, Document, Snippet, SnippetLanguage, Task, TaskStatus, TaskPriority } from '@/lib/types';
+import { projectStore, documentStore, snippetStore, taskStore, mediaStore } from '@/lib/store';
+import { Project, Document, Snippet, SnippetLanguage, Task, TaskStatus, TaskPriority, MediaItem } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
@@ -20,6 +20,7 @@ import { useStore } from '@/hooks/use-store';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { copyWithToast } from '@/lib/clipboard';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 
 
 const LANG_COLORS: Record<SnippetLanguage, string> = { BASH: 'bg-warning/20 text-warning', YAML: 'bg-info/20 text-info', PYTHON: 'bg-success/20 text-success' };
