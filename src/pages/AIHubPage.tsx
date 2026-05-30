@@ -600,7 +600,7 @@ export default function AIHubPage() {
                   )}>
                     {msg.role === 'assistant' ? (
                       <div className="prose prose-sm prose-invert max-w-none prose-p:my-1 prose-pre:bg-background prose-pre:border prose-pre:border-border prose-code:text-success">
-                        <ReactMarkdown>{msg.content || '...'}</ReactMarkdown>
+                        <ReactMarkdown remarkPlugins={[remarkBreaks]} components={markdownComponents}>{msg.content || '...'}</ReactMarkdown>
                       </div>
                     ) : (
                       <p className="whitespace-pre-wrap">{msg.content}</p>
