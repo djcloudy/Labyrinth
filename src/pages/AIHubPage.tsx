@@ -142,18 +142,31 @@ export default function AIHubPage() {
     });
   }, [updateActive]);
 
-  const setProvider = useCallback((p: Provider) => updateActive({ provider: p }), [updateActive]);
-  const setModel = useCallback((m: string) => updateActive({ model: m }), [updateActive]);
+  const persistActivePatch = useCallback((id: string, patch: Partial<Conversation>) => {
+    conversationStore.update(id, patch).catch(err => console.error('Failed to persist conversation', err));
+  }, []);
 
-  const deleteConversation = (id: string) => {
+  const setProvider = useCallback((p: Provider) => {
+    updateActive({ provider: p });
+    if (activeId) persistActivePatch(activeId, { provider: p });
+  }, [updateActive, activeId, persistActivePatch]);
+
+  const setModel = useCallback((m: string) => {
+    updateActive({ model: m });
+    if (activeId) persistActivePatch(activeId, { model: m });
+  }, [updateActive, activeId, persistActivePatch]);
+
+  const deleteConversation = async (id: string) => {
+    try { await conversationStore.delete(id); } catch (e) { console.error(e); }
     setConversations(prev => {
       const next = prev.filter(c => c.id !== id);
       if (id === activeId) {
         if (next.length === 0) {
-          const now = new Date().toISOString();
-          const conv: Conversation = { id: crypto.randomUUID(), title: 'New chat', messages: [], provider: 'openai', model: PROVIDER_MODELS.openai[0], createdAt: now, updatedAt: now };
-          setActiveId(conv.id);
-          return [conv];
+          // Trigger creation in next tick via newConversation
+          setActiveId('');
+          // schedule new conversation creation
+          setTimeout(() => { newConversation(); }, 0);
+          return [];
         }
         setActiveId(next[0].id);
       }
@@ -163,7 +176,10 @@ export default function AIHubPage() {
 
   const commitRename = (id: string) => {
     const t = renameValue.trim();
-    if (t) setConversations(prev => prev.map(c => c.id === id ? { ...c, title: t } : c));
+    if (t) {
+      setConversations(prev => prev.map(c => c.id === id ? { ...c, title: t } : c));
+      persistActivePatch(id, { title: t });
+    }
     setRenamingId(null);
   };
 
