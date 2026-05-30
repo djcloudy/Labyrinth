@@ -412,7 +412,7 @@ export default function AIHubPage() {
         });
       }
     }
-  }, [input, messages, provider, model, settings, isStreaming, attachments, knowledgeBase, buildContextMessages]);
+  }, [input, messages, provider, model, settings, isStreaming, attachments, knowledgeBase, buildContextMessages, activeId]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
