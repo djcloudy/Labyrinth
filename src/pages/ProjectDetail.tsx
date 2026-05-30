@@ -106,7 +106,8 @@ export default function ProjectDetail() {
   const cycleTaskStatus = async (task: Task) => { const next: Record<TaskStatus, TaskStatus> = { TODO: 'IN_PROGRESS', IN_PROGRESS: 'DONE', DONE: 'TODO' }; await taskStore.update(task.id, { status: next[task.status] }); refreshTasks(); };
 
   const handleCopy = async (snippetId: string, code: string) => {
-    await navigator.clipboard.writeText(code);
+    const ok = await copyWithToast(code, 'Snippet copied');
+    if (!ok) return;
     setCopiedId(snippetId);
     setTimeout(() => setCopiedId(null), 2000);
   };
