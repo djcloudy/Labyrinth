@@ -336,7 +336,7 @@ export default function ProjectDetail() {
               )}
             </div>
             <div className="flex justify-end gap-2 pt-4 border-t border-border">
-              <Button variant="outline" size="sm" onClick={() => { if (viewDoc?.content) { navigator.clipboard.writeText(viewDoc.content); } }}>
+              <Button variant="outline" size="sm" onClick={() => { if (viewDoc?.content) copyWithToast(viewDoc.content, 'Document copied'); }}>
                 <Copy className="h-3.5 w-3.5 mr-1.5" /> Copy
               </Button>
               <Button variant="outline" size="sm" onClick={() => { if (viewDoc) { openDocEdit(viewDoc); setViewDoc(null); } }}>
