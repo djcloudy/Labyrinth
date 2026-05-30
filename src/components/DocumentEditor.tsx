@@ -18,11 +18,13 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   editing: Document | null;
   projects: Project[];
+  /** If set, project picker is hidden and this id is used for new documents. */
+  forcedProjectId?: string | null;
   onSave: (data: { title: string; content: string; projectId: string | null }) => Promise<void> | void;
   onRefresh?: () => void;
 }
 
-export default function DocumentEditor({ open, onOpenChange, editing, projects, onSave, onRefresh }: Props) {
+export default function DocumentEditor({ open, onOpenChange, editing, projects, forcedProjectId, onSave, onRefresh }: Props) {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [projectId, setProjectId] = useState<string>('none');
@@ -34,10 +36,10 @@ export default function DocumentEditor({ open, onOpenChange, editing, projects, 
     if (open) {
       setTitle(editing?.title || '');
       setContent(editing?.content || '');
-      setProjectId(editing?.projectId || 'none');
+      setProjectId(editing?.projectId || forcedProjectId || 'none');
       setShowPreview(true);
     }
-  }, [open, editing]);
+  }, [open, editing, forcedProjectId]);
 
   const applyTemplate = (id: string) => {
     const tpl = DOC_TEMPLATES.find(t => t.id === id);
@@ -50,7 +52,10 @@ export default function DocumentEditor({ open, onOpenChange, editing, projects, 
     if (!title.trim()) return;
     setSaving(true);
     try {
-      await onSave({ title, content, projectId: projectId === 'none' ? null : projectId });
+      const pid = forcedProjectId !== undefined && forcedProjectId !== null
+        ? forcedProjectId
+        : projectId === 'none' ? null : projectId;
+      await onSave({ title, content, projectId: pid });
       onOpenChange(false);
     } finally {
       setSaving(false);
@@ -100,15 +105,17 @@ export default function DocumentEditor({ open, onOpenChange, editing, projects, 
             </Button>
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            <Select value={projectId} onValueChange={setProjectId}>
-              <SelectTrigger className="h-8 w-48 bg-secondary border-border text-xs">
-                <SelectValue placeholder="Link to project" />
-              </SelectTrigger>
-              <SelectContent className="bg-card border-border">
-                <SelectItem value="none">No project</SelectItem>
-                {projects.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            {forcedProjectId === undefined && (
+              <Select value={projectId} onValueChange={setProjectId}>
+                <SelectTrigger className="h-8 w-48 bg-secondary border-border text-xs">
+                  <SelectValue placeholder="Link to project" />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-border">
+                  <SelectItem value="none">No project</SelectItem>
+                  {projects.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            )}
             <Select value="" onValueChange={applyTemplate}>
               <SelectTrigger className="h-8 w-44 bg-secondary border-border text-xs">
                 <Sparkles className="h-3 w-3 mr-1" />

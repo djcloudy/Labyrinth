@@ -1,20 +1,17 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, Pencil, Trash2, CheckCircle2, Circle, Clock, Search, GripVertical, Calendar as CalendarIcon, ListChecks, X, Tag, History } from 'lucide-react';
+import { Plus, Pencil, Trash2, CheckCircle2, Circle, Clock, Search, GripVertical, Calendar as CalendarIcon, ListChecks, Tag } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { format, isPast, isToday } from 'date-fns';
 import AppLayout from '@/components/AppLayout';
-import RevisionsDialog from '@/components/RevisionsDialog';
+import TaskEditor from '@/components/TaskEditor';
 import { taskStore, projectStore } from '@/lib/store';
 import { useStore } from '@/hooks/use-store';
-import { Task, TaskStatus, TaskPriority, Project, ChecklistItem } from '@/lib/types';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Task, TaskStatus, TaskPriority, Project } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 
@@ -30,27 +27,13 @@ const PRIORITY_COLORS: Record<TaskPriority, string> = {
   HIGH: 'bg-destructive/20 text-destructive',
 };
 
-function newChecklistItem(text = ''): ChecklistItem {
-  return { id: crypto.randomUUID(), text, done: false };
-}
-
 export default function TasksPage() {
   const { data: tasks, loading, refresh } = useStore(useCallback(() => taskStore.getAll(), []));
   const [projects, setProjects] = useState<Project[]>([]);
   useEffect(() => { projectStore.getAll().then(setProjects); }, []);
 
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editorOpen, setEditorOpen] = useState(false);
   const [editing, setEditing] = useState<Task | null>(null);
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [status, setStatus] = useState<TaskStatus>('TODO');
-  const [priority, setPriority] = useState<TaskPriority>('MEDIUM');
-  const [projectId, setProjectId] = useState<string>('');
-  const [dueDate, setDueDate] = useState<string>('');
-  const [tagsInput, setTagsInput] = useState<string>('');
-  const [checklist, setChecklist] = useState<ChecklistItem[]>([]);
-  const [showDetails, setShowDetails] = useState(false);
-  const [historyOpen, setHistoryOpen] = useState(false);
   const [filterProject, setFilterProject] = useState<string>('all');
   const [filterTag, setFilterTag] = useState<string>('all');
   const [search, setSearch] = useState('');
@@ -59,40 +42,14 @@ export default function TasksPage() {
   const highlightRef = useRef<HTMLDivElement>(null);
   useEffect(() => { if (highlightRef.current) highlightRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, [highlightId, loading]);
 
-  const openCreate = useCallback(() => {
-    setEditing(null);
-    setTitle(''); setDescription(''); setStatus('TODO'); setPriority('MEDIUM');
-    setProjectId(projects.length > 0 ? projects[0].id : '');
-    setDueDate(''); setTagsInput(''); setChecklist([]);
-    setShowDetails(false);
-    setDialogOpen(true);
-  }, [projects]);
+  const openCreate = useCallback(() => { setEditing(null); setEditorOpen(true); }, []);
+  const openEdit = (t: Task) => { setEditing(t); setEditorOpen(true); };
 
-  const openEdit = (t: Task) => {
-    setEditing(t);
-    setTitle(t.title); setDescription(t.description);
-    setStatus(t.status); setPriority(t.priority); setProjectId(t.projectId);
-    setDueDate(t.dueDate ? t.dueDate.slice(0, 10) : '');
-    setTagsInput((t.tags || []).join(', '));
-    setChecklist(t.checklist || []);
-    setShowDetails(true);
-    setDialogOpen(true);
-  };
-
-  const handleSave = useCallback(async () => {
-    if (!title.trim() || !projectId) return;
-    const tags = tagsInput.split(',').map(s => s.trim()).filter(Boolean);
-    const cleaned = checklist.filter(c => c.text.trim());
-    const payload = {
-      title: title.trim(), description, status, priority, projectId,
-      ...(dueDate ? { dueDate } : { dueDate: undefined }),
-      tags, checklist: cleaned,
-    };
-    if (editing) await taskStore.update(editing.id, payload);
-    else await taskStore.create(payload as Omit<Task, 'id' | 'createdAt' | 'updatedAt'>);
-    setDialogOpen(false);
+  const handleSave = async (data: Partial<Task>) => {
+    if (editing) await taskStore.update(editing.id, data);
+    else await taskStore.create(data as Omit<Task, 'id' | 'createdAt' | 'updatedAt'>);
     refresh();
-  }, [title, projectId, tagsInput, checklist, description, status, priority, dueDate, editing, refresh]);
+  };
 
   const handleDelete = async (id: string) => { await taskStore.delete(id); refresh(); };
 
@@ -133,15 +90,7 @@ export default function TasksPage() {
   const grouped: Record<TaskStatus, Task[]> = { TODO: [], IN_PROGRESS: [], DONE: [] };
   filtered.forEach(t => grouped[t.status]?.push(t));
 
-  // Ctrl/Cmd+Enter to save when dialog open
-  useEffect(() => {
-    if (!dialogOpen) return;
-    const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); handleSave(); }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [dialogOpen, handleSave]);
+
 
   return (
     <AppLayout>
@@ -307,164 +256,13 @@ export default function TasksPage() {
           </DragDropContext>
         )}
 
-        {/* Compact task dialog */}
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogContent className="bg-card border-border max-w-lg">
-            <DialogHeader>
-              <div className="flex items-center justify-between gap-2">
-                <DialogTitle className="text-base">{editing ? 'Edit Task' : 'New Task'}</DialogTitle>
-                {editing && (
-                  <Button variant="ghost" size="sm" onClick={() => setHistoryOpen(true)} className="gap-1.5 text-xs h-7">
-                    <History className="h-3.5 w-3.5" /> History
-                  </Button>
-                )}
-              </div>
-              <DialogDescription className="sr-only">Task form</DialogDescription>
-            </DialogHeader>
-            <div className="space-y-3">
-              <Input
-                placeholder="What needs to happen?"
-                value={title}
-                onChange={e => setTitle(e.target.value)}
-                className="bg-secondary border-border text-sm"
-                autoFocus
-              />
-
-              {/* Compact inline row: project, priority, due */}
-              <div className="grid grid-cols-3 gap-2">
-                <Select value={projectId} onValueChange={setProjectId}>
-                  <SelectTrigger className="h-9 bg-secondary border-border text-xs"><SelectValue placeholder="Project" /></SelectTrigger>
-                  <SelectContent className="bg-card border-border">
-                    {projects.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-                <Select value={priority} onValueChange={v => setPriority(v as TaskPriority)}>
-                  <SelectTrigger className="h-9 bg-secondary border-border text-xs"><SelectValue /></SelectTrigger>
-                  <SelectContent className="bg-card border-border">
-                    <SelectItem value="LOW">Low</SelectItem>
-                    <SelectItem value="MEDIUM">Medium</SelectItem>
-                    <SelectItem value="HIGH">High</SelectItem>
-                  </SelectContent>
-                </Select>
-                <div className="relative">
-                  <CalendarIcon className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                  <Input
-                    type="date"
-                    value={dueDate}
-                    onChange={e => setDueDate(e.target.value)}
-                    className="h-9 bg-secondary border-border pl-7 text-xs"
-                  />
-                </div>
-              </div>
-
-              {!showDetails ? (
-                <button
-                  onClick={() => setShowDetails(true)}
-                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  + add description, tags, subtasks
-                </button>
-              ) : (
-                <div className="space-y-3 rounded-lg border border-border bg-background/40 p-3">
-                  <Textarea
-                    placeholder="Description / context (why does this task exist?)"
-                    value={description}
-                    onChange={e => setDescription(e.target.value)}
-                    rows={3}
-                    className="bg-secondary border-border text-sm"
-                  />
-                  <Input
-                    placeholder="Tags (comma separated)"
-                    value={tagsInput}
-                    onChange={e => setTagsInput(e.target.value)}
-                    className="bg-secondary border-border text-xs"
-                  />
-
-                  <div>
-                    <div className="mb-1.5 flex items-center justify-between">
-                      <label className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                        <ListChecks className="h-3 w-3" /> Subtasks
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => setChecklist(c => [...c, newChecklistItem()])}
-                        className="text-xs text-primary hover:underline"
-                      >+ add</button>
-                    </div>
-                    <div className="space-y-1">
-                      {checklist.map((item, i) => (
-                        <div key={item.id} className="flex items-center gap-2">
-                          <Checkbox
-                            checked={item.done}
-                            onCheckedChange={(v) => setChecklist(c => c.map(x => x.id === item.id ? { ...x, done: !!v } : x))}
-                            className="h-3.5 w-3.5"
-                          />
-                          <Input
-                            value={item.text}
-                            onChange={e => setChecklist(c => c.map(x => x.id === item.id ? { ...x, text: e.target.value } : x))}
-                            onKeyDown={e => {
-                              if (e.key === 'Enter') {
-                                e.preventDefault();
-                                setChecklist(c => {
-                                  const next = [...c];
-                                  next.splice(i + 1, 0, newChecklistItem());
-                                  return next;
-                                });
-                                setTimeout(() => {
-                                  const inputs = document.querySelectorAll<HTMLInputElement>('input[data-subtask]');
-                                  inputs[i + 1]?.focus();
-                                }, 0);
-                              }
-                            }}
-                            placeholder="Subtask..."
-                            data-subtask="true"
-                            className="h-7 bg-secondary border-border text-xs"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setChecklist(c => c.filter(x => x.id !== item.id))}
-                            className="text-muted-foreground hover:text-destructive"
-                          ><X className="h-3 w-3" /></button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <Select value={status} onValueChange={v => setStatus(v as TaskStatus)}>
-                    <SelectTrigger className="h-8 bg-secondary border-border text-xs"><SelectValue /></SelectTrigger>
-                    <SelectContent className="bg-card border-border">
-                      <SelectItem value="TODO">To Do</SelectItem>
-                      <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
-                      <SelectItem value="DONE">Done</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-
-              {tagsInput && (
-                <div className="flex flex-wrap gap-1">
-                  {tagsInput.split(',').map(t => t.trim()).filter(Boolean).map(t => (
-                    <Badge key={t} variant="secondary" className="text-[10px]">#{t}</Badge>
-                  ))}
-                </div>
-              )}
-
-              <div className="flex items-center justify-between pt-1">
-                <span className="text-[11px] text-muted-foreground">⌘/Ctrl + Enter to save</span>
-                <Button onClick={handleSave} disabled={!title.trim() || !projectId} size="sm">
-                  {editing ? 'Save' : 'Create'}
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-
-        <RevisionsDialog
-          open={historyOpen}
-          onOpenChange={setHistoryOpen}
-          collection="tasks"
-          id={editing?.id ?? null}
-          onRestored={() => { setDialogOpen(false); refresh(); }}
+        <TaskEditor
+          open={editorOpen}
+          onOpenChange={setEditorOpen}
+          editing={editing}
+          projects={projects}
+          onSave={handleSave}
+          onRefresh={refresh}
         />
       </div>
     </AppLayout>

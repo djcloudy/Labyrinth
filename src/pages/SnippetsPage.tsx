@@ -1,16 +1,14 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, Pencil, Trash2, Copy, Check, Search, Sparkles, History } from 'lucide-react';
+import { Plus, Pencil, Trash2, Copy, Check, Search } from 'lucide-react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import AppLayout from '@/components/AppLayout';
-import CodeEditor from '@/components/CodeEditor';
-import RevisionsDialog from '@/components/RevisionsDialog';
+import SnippetEditor from '@/components/SnippetEditor';
 import { snippetStore, projectStore } from '@/lib/store';
 import { useStore } from '@/hooks/use-store';
 import { Snippet, SnippetLanguage, Project } from '@/lib/types';
-import { SNIPPET_TEMPLATES } from '@/lib/templates';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -24,32 +22,24 @@ export default function SnippetsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   useEffect(() => { projectStore.getAll().then(setProjects); }, []);
 
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editorOpen, setEditorOpen] = useState(false);
   const [editing, setEditing] = useState<Snippet | null>(null);
   const [viewSnippet, setViewSnippet] = useState<Snippet | null>(null);
-  const [title, setTitle] = useState('');
-  const [code, setCode] = useState('');
-  const [language, setLanguage] = useState<SnippetLanguage>('BASH');
-  const [projectId, setProjectId] = useState<string>('none');
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [filterProject, setFilterProject] = useState<string>('all');
   const [filterLang, setFilterLang] = useState<string>('all');
-  const [historyOpen, setHistoryOpen] = useState(false);
   const [searchParams] = useSearchParams();
   const highlightId = searchParams.get('snippet');
   const highlightRef = useRef<HTMLDivElement>(null);
   useEffect(() => { if (highlightRef.current) highlightRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, [highlightId, loading]);
 
-  const openCreate = () => { setEditing(null); setTitle(''); setCode(''); setLanguage('BASH'); setProjectId('none'); setDialogOpen(true); };
-  const openEdit = (s: Snippet) => { setEditing(s); setTitle(s.title); setCode(s.code); setLanguage(s.language); setProjectId(s.projectId || 'none'); setDialogOpen(true); };
+  const openCreate = () => { setEditing(null); setEditorOpen(true); };
+  const openEdit = (s: Snippet) => { setEditing(s); setEditorOpen(true); };
 
-  const handleSave = async () => {
-    if (!title.trim()) return;
-    const pid = projectId === 'none' ? null : projectId;
-    if (editing) await snippetStore.update(editing.id, { title, code, language, projectId: pid });
-    else await snippetStore.create({ title, code, language, projectId: pid });
-    setDialogOpen(false);
+  const handleSave = async (data: { title: string; code: string; language: SnippetLanguage; projectId: string | null }) => {
+    if (editing) await snippetStore.update(editing.id, data);
+    else await snippetStore.create(data);
     refresh();
   };
 
@@ -167,72 +157,13 @@ export default function SnippetsPage() {
           </DialogContent>
         </Dialog>
 
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogContent className="bg-card border-border max-w-3xl">
-            <DialogHeader>
-              <div className="flex items-center justify-between gap-2">
-                <DialogTitle>{editing ? 'Edit Snippet' : 'New Snippet'}</DialogTitle>
-                {editing && (
-                  <Button variant="ghost" size="sm" onClick={() => setHistoryOpen(true)} className="gap-1.5 text-xs">
-                    <History className="h-3.5 w-3.5" /> History
-                  </Button>
-                )}
-              </div>
-              <DialogDescription className="sr-only">Snippet editor with syntax highlighting</DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <Input placeholder="Title" value={title} onChange={e => setTitle(e.target.value)} className="bg-secondary border-border" />
-              <div className="grid grid-cols-3 gap-3">
-                <Select value={language} onValueChange={v => setLanguage(v as SnippetLanguage)}>
-                  <SelectTrigger className="bg-secondary border-border"><SelectValue /></SelectTrigger>
-                  <SelectContent className="bg-card border-border">
-                    <SelectItem value="BASH">BASH</SelectItem>
-                    <SelectItem value="YAML">YAML</SelectItem>
-                    <SelectItem value="PYTHON">PYTHON</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select value={projectId} onValueChange={setProjectId}>
-                  <SelectTrigger className="bg-secondary border-border"><SelectValue placeholder="Link to project" /></SelectTrigger>
-                  <SelectContent className="bg-card border-border">
-                    <SelectItem value="none">No project</SelectItem>
-                    {projects.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-                <Select value="" onValueChange={(id) => {
-                  const tpl = SNIPPET_TEMPLATES.find(t => t.id === id);
-                  if (!tpl) return;
-                  if (!title.trim()) setTitle(tpl.title);
-                  setLanguage(tpl.language);
-                  setCode(tpl.code);
-                }}>
-                  <SelectTrigger className="bg-secondary border-border">
-                    <Sparkles className="h-3 w-3 mr-1" />
-                    <SelectValue placeholder="Template..." />
-                  </SelectTrigger>
-                  <SelectContent className="bg-card border-border">
-                    {SNIPPET_TEMPLATES.map(t => (
-                      <SelectItem key={t.id} value={t.id}>
-                        <div className="flex items-center gap-2">
-                          <span>{t.label}</span>
-                          <span className="text-[10px] text-muted-foreground">{t.language}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <CodeEditor value={code} onChange={setCode} language={language} height="340px" placeholder="Paste your code..." />
-              <Button onClick={handleSave} className="w-full">{editing ? 'Save' : 'Create'}</Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-
-        <RevisionsDialog
-          open={historyOpen}
-          onOpenChange={setHistoryOpen}
-          collection="snippets"
-          id={editing?.id ?? null}
-          onRestored={() => { setDialogOpen(false); refresh(); }}
+        <SnippetEditor
+          open={editorOpen}
+          onOpenChange={setEditorOpen}
+          editing={editing}
+          projects={projects}
+          onSave={handleSave}
+          onRefresh={refresh}
         />
       </div>
     </AppLayout>
