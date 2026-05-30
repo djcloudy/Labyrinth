@@ -418,7 +418,11 @@ export default function AIHubPage() {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   };
 
-  const clearChat = () => { setMessages([]); setError(null); };
+  const clearChat = () => {
+    setMessages([]);
+    setError(null);
+    if (activeId) persistActivePatch(activeId, { messages: [] });
+  };
   const hasApiKey = provider === 'ollama' || settings[`${provider}ApiKey` as keyof AISettings];
 
   const sortedConversations = useMemo(
