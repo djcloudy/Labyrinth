@@ -492,6 +492,18 @@ export default function ProjectDetail() {
           </DialogContent>
         </Dialog>
 
+        {/* Media Lightbox */}
+        <Dialog open={!!viewMedia} onOpenChange={(open) => !open && setViewMedia(null)}>
+          <DialogContent className="bg-card border-border max-w-3xl">
+            {viewMedia && (
+              <>
+                <DialogHeader><DialogTitle>{viewMedia.title}</DialogTitle></DialogHeader>
+                <img src={viewMedia.url} alt={viewMedia.title} className="w-full rounded-lg" />
+              </>
+            )}
+          </DialogContent>
+        </Dialog>
+
         {/* Shared editors, pinned to this project */}
         <DocumentEditor
           open={docEditorOpen}
