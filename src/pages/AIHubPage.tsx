@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { Bot, Send, Settings2, Trash2, Loader2, AlertCircle, RefreshCw, Paperclip, X, Database, Shield, Wifi, WifiOff, Plus, MessageSquare, Pencil } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import remarkBreaks from 'remark-breaks';
+import { markdownComponents } from '@/components/MarkdownCode';
 import AppLayout from '@/components/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -598,7 +600,7 @@ export default function AIHubPage() {
                   )}>
                     {msg.role === 'assistant' ? (
                       <div className="prose prose-sm prose-invert max-w-none prose-p:my-1 prose-pre:bg-background prose-pre:border prose-pre:border-border prose-code:text-success">
-                        <ReactMarkdown>{msg.content || '...'}</ReactMarkdown>
+                        <ReactMarkdown remarkPlugins={[remarkBreaks]} components={markdownComponents}>{msg.content || '...'}</ReactMarkdown>
                       </div>
                     ) : (
                       <p className="whitespace-pre-wrap">{msg.content}</p>

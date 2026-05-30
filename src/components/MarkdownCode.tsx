@@ -24,7 +24,8 @@ export function MarkdownPre({ children, ...props }: any) {
   const handleCopy = async (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
-    const text = (preRef.current?.innerText ?? '').replace(/\n$/, '');
+    const node = preRef.current;
+    const text = ((node?.innerText || node?.textContent) ?? '').replace(/\n$/, '');
     if (!text) return;
     const ok = await copyWithToast(text, 'Code copied');
     if (ok) {
