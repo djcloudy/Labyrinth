@@ -432,9 +432,9 @@ export default function AIHubPage() {
 
   return (
     <AppLayout>
-      <div className="animate-fade-in flex h-[calc(100vh-2rem)] gap-4">
+      <div className="animate-fade-in flex h-[calc(100vh-4rem)] gap-4">
         {/* Conversation sidebar */}
-        <aside className="hidden w-64 shrink-0 flex-col rounded-xl border border-border bg-card/50 p-3 md:flex">
+        <aside className="hidden w-48 shrink-0 flex-col rounded-xl border border-border bg-card/50 p-3 md:flex">
           <Button onClick={() => newConversation()} size="sm" className="mb-3 w-full justify-start gap-2">
             <Plus className="h-4 w-4" /> New chat
           </Button>
@@ -498,9 +498,9 @@ export default function AIHubPage() {
         {/* Main chat column */}
         <div className="flex flex-1 flex-col min-w-0">
         {/* Header */}
-        <div className="mb-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-bold text-foreground">AI Hub</h1>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-y-2">
+          <div className="flex flex-wrap items-center gap-3 gap-y-2">
+            <h1 className="text-2xl font-bold text-foreground">AI Hub</h1>
             {provider === 'ollama' && (
               <Badge
                 variant="secondary"
@@ -525,7 +525,7 @@ export default function AIHubPage() {
             </Badge>
             <div className="flex items-center gap-2">
               <Select value={provider} onValueChange={(v) => setProvider(v as Provider)}>
-                <SelectTrigger className="w-40 bg-secondary border-border h-8 text-xs">
+                <SelectTrigger className="w-32 bg-secondary border-border h-8 text-xs">
                   <SelectValue placeholder={modelsLoading ? 'Loading models...' : provider === 'ollama' ? 'No pulled models found' : 'Select model'} />
                 </SelectTrigger>
                 <SelectContent className="bg-card border-border">
@@ -535,7 +535,7 @@ export default function AIHubPage() {
                 </SelectContent>
               </Select>
               <Select value={model} onValueChange={setModel}>
-                <SelectTrigger className="w-48 bg-secondary border-border h-8 text-xs">
+                <SelectTrigger className="w-40 bg-secondary border-border h-8 text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-card border-border max-h-60">
@@ -556,7 +556,7 @@ export default function AIHubPage() {
               </Button>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" onClick={clearChat} className="gap-1.5">
               <Trash2 className="h-3.5 w-3.5" /> Clear
             </Button>
