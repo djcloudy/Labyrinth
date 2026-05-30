@@ -226,6 +226,14 @@ export default function SnippetsPage() {
             </div>
           </DialogContent>
         </Dialog>
+
+        <RevisionsDialog
+          open={historyOpen}
+          onOpenChange={setHistoryOpen}
+          collection="snippets"
+          id={editing?.id ?? null}
+          onRestored={() => { setDialogOpen(false); refresh(); }}
+        />
       </div>
     </AppLayout>
   );
