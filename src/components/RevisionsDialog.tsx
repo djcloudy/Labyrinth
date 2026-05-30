@@ -8,7 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { apiGetRevisions, apiRestoreRevision } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
-type CollectionName = 'documents' | 'snippets' | 'tasks';
+type CollectionName = 'documents' | 'snippets' | 'tasks' | 'knowledge';
 
 interface Revision {
   revisionId: string;
