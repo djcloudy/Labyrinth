@@ -153,3 +153,66 @@ Check the **Settings** page to see the current storage mode and data directory p
 - Tailwind CSS + shadcn/ui
 - Express.js (backend server)
 - JSON file storage (no database required)
+
+## Assistant API (Capture)
+
+Labyrinth exposes a unified write endpoint so external agents can save lab knowledge with one call.
+
+### Endpoint
+
+```
+POST /api/capture
+```
+
+Headers (only when `LABYRINTH_API_KEY` is set on the server):
+```
+Authorization: Bearer <LABYRINTH_API_KEY>
+Content-Type: application/json
+```
+
+### Body
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `type` | `"document" \| "snippet" \| "task" \| "auto"` | `auto` (default) detects from content |
+| `title` | string | Optional — first line is used if blank |
+| `content` | string | Document/snippet body (markdown or raw) |
+| `code` | string | Alias for snippet body |
+| `description` | string | Task body |
+| `language` | `"BASH" \| "YAML" \| "PYTHON"` | Snippets only; auto-detected if omitted |
+| `projectId` | string | Optional; required for tasks (defaults to first project) |
+| `tags` | string[] or csv | Free-form labels |
+| `source` | string | Defaults to `"assistant"`; appears in audit log |
+| `createdBy` | string | Identifies the agent/user |
+| `externalRef` | string | Link back to the originating system (ticket id, URL, ...) |
+| `notes` | string | Free-form context |
+| `status` / `priority` / `dueDate` / `checklist` | — | Task-only fields |
+
+### Example
+
+```bash
+curl -X POST http://localhost:3002/api/capture \
+  -H "Authorization: Bearer $LABYRINTH_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "auto",
+    "title": "Restart caddy",
+    "content": "```bash\nsudo systemctl restart caddy\n```",
+    "tags": ["ops","caddy"],
+    "source": "assistant",
+    "createdBy": "ops-bot",
+    "externalRef": "incident-1421"
+  }'
+```
+
+Returns `{ type, collection, item }`.
+
+### Revisions & Audit
+
+- `GET  /api/:collection/:id/revisions` — full prior snapshots (documents, snippets, tasks)
+- `POST /api/:collection/:id/restore/:revisionId` — restore a snapshot (saves current as new revision first)
+- `GET  /api/audit` — assistant/api/import writes are logged here
+
+### Auth
+
+Set `LABYRINTH_API_KEY` in the server environment to require Bearer auth on `/api/capture`. If unset, the endpoint is open (local mode). Browser CRUD endpoints are unauthenticated by design.
