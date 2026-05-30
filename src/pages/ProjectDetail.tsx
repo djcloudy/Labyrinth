@@ -112,19 +112,6 @@ export default function ProjectDetail() {
 
   const handleDeleteProject = async () => { await projectStore.delete(id!); navigate('/projects'); };
 
-  // Derived filtering
-  const q = search.trim().toLowerCase();
-  const matchesQ = (s: string) => !q || s.toLowerCase().includes(q);
-  const hasTag = (t?: string[]) => !tagFilter || (t || []).includes(tagFilter);
-  const filteredDocs = useMemo(() => docs.filter(d => hasTag(d.tags) && (matchesQ(d.title) || matchesQ(d.content || ''))), [docs, q, tagFilter]);
-  const filteredTasks = useMemo(() => tasks.filter(t => hasTag(t.tags) && (matchesQ(t.title) || matchesQ(t.description || ''))), [tasks, q, tagFilter]);
-  const filteredSnippets = useMemo(() => snippets.filter(s => hasTag(s.tags) && (matchesQ(s.title) || matchesQ(s.code || ''))), [snippets, q, tagFilter]);
-
-  const allProjectTags = useMemo(() => {
-    const s = new Set<string>();
-    [...docs, ...tasks, ...snippets].forEach(item => (item.tags || []).forEach(t => s.add(t)));
-    return Array.from(s).sort();
-  }, [docs, tasks, snippets]);
 
   const doneCount = tasks.filter(t => t.status === 'DONE').length;
   const percent = tasks.length ? Math.round((doneCount / tasks.length) * 100) : 0;
