@@ -114,32 +114,58 @@ export default function AIHubPage() {
 
     // Knowledge base system message
     if (knowledgeBase) {
-      const [projects, docs, snippets, media] = await Promise.all([
-        projectStore.getAll(),
-        documentStore.getAll(),
-        snippetStore.getAll(),
-        mediaStore.getAll(),
-      ]);
-      const summary = [
-        '## Your Project Knowledge Base',
-        '',
-        '### Projects',
-        ...projects.map(p => `- **${p.name}**: ${p.description || 'No description'}`),
-        '',
-        '### Documents',
-        ...docs.map(d => `- ${d.title}`),
-        '',
-        '### Snippets',
-        ...snippets.map(s => `- ${s.title} (${s.language})`),
-        '',
-        '### Media',
-        ...media.map(m => `- ${m.title} (${m.type})`),
-      ].join('\n');
-
-      contextMessages.push({
-        role: 'system',
-        content: `You have access to the user's project knowledge base. Use this information to answer their questions.\n\n${summary}`,
-      });
+      if (knowledgeScope === 'all') {
+        // Index-only: lightweight listing across everything
+        const [projects, docs, snippets, media] = await Promise.all([
+          projectStore.getAll(),
+          documentStore.getAll(),
+          snippetStore.getAll(),
+          mediaStore.getAll(),
+        ]);
+        const summary = [
+          '## Your Project Knowledge Base (Index)',
+          '',
+          '### Projects',
+          ...projects.map(p => `- **${p.name}**: ${p.description || 'No description'}`),
+          '',
+          '### Documents',
+          ...docs.map(d => `- ${d.title}`),
+          '',
+          '### Snippets',
+          ...snippets.map(s => `- ${s.title} (${s.language})`),
+          '',
+          '### Media',
+          ...media.map(m => `- ${m.title} (${m.type})`),
+        ].join('\n');
+        contextMessages.push({
+          role: 'system',
+          content: `You have access to the user's project knowledge base. Use this information to answer their questions.\n\n${summary}`,
+        });
+      } else {
+        // Full content for a single project: docs + snippets + tasks
+        const [project, docs, snippets, tasks] = await Promise.all([
+          projectStore.getById(knowledgeScope),
+          documentStore.getByProject(knowledgeScope),
+          snippetStore.getByProject(knowledgeScope),
+          taskStore.getByProject(knowledgeScope),
+        ]);
+        const parts: string[] = [
+          `## Project Knowledge Base: ${project?.name ?? 'Unknown project'}`,
+          project?.description ? `\n${project.description}\n` : '',
+          '### Documents',
+          ...(docs.length ? docs.map(d => `\n#### ${d.title}\n${d.content || '_(empty)_'}`) : ['_(none)_']),
+          '',
+          '### Snippets',
+          ...(snippets.length ? snippets.map(s => `\n#### ${s.title} (${s.language})\n\`\`\`${s.language.toLowerCase()}\n${s.code}\n\`\`\``) : ['_(none)_']),
+          '',
+          '### Tasks',
+          ...(tasks.length ? tasks.map(t => `- [${t.status}] **${t.title}** (${t.priority})${t.description ? ` — ${t.description}` : ''}`) : ['_(none)_']),
+        ];
+        contextMessages.push({
+          role: 'system',
+          content: `You have access to the full contents of this project. Use it to answer the user's questions.\n\n${parts.join('\n')}`,
+        });
+      }
     }
 
     // Attached content injection
