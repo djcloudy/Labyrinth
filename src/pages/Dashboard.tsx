@@ -83,14 +83,43 @@ export default function Dashboard() {
             )}
           </div>
 
-          <div className="flex flex-col items-center justify-center rounded-xl border border-border bg-card p-5">
-            <Bot className="mb-4 h-10 w-10 text-primary" />
-            <button
-              onClick={() => navigate('/ai-hub')}
-              className="rounded-lg bg-primary px-8 py-3 text-sm font-bold tracking-wide text-primary-foreground hover:bg-primary/90 transition-colors"
-            >
-              LAUNCH AI HUB
-            </button>
+          <div className="flex flex-col gap-4">
+            <div className="rounded-xl border border-border bg-card p-5">
+              <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
+                <BookOpen className="h-4 w-4 text-primary" />
+                Recent Knowledge
+              </h2>
+              {loading ? (
+                <div className="space-y-2">{[1, 2, 3].map(i => <Skeleton key={i} className="h-8 w-full" />)}</div>
+              ) : recentKnowledge.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  Nothing yet. <button onClick={() => navigate('/knowledge')} className="text-primary hover:underline">Add an entry</button>
+                </p>
+              ) : (
+                <div className="space-y-1">
+                  {recentKnowledge.map(k => (
+                    <button
+                      key={k.id}
+                      onClick={() => navigate(`/knowledge?entry=${k.id}`)}
+                      className="block w-full truncate rounded px-2 py-1.5 text-left text-xs text-muted-foreground hover:bg-secondary hover:text-foreground"
+                    >
+                      <span className="uppercase mr-2 text-[9px] tracking-wider text-primary">{k.kind}</span>
+                      {k.title}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-col items-center justify-center rounded-xl border border-border bg-card p-5">
+              <Bot className="mb-4 h-10 w-10 text-primary" />
+              <button
+                onClick={() => navigate('/ai-hub')}
+                className="rounded-lg bg-primary px-8 py-3 text-sm font-bold tracking-wide text-primary-foreground hover:bg-primary/90 transition-colors"
+              >
+                LAUNCH AI HUB
+              </button>
+            </div>
           </div>
         </div>
       </div>
